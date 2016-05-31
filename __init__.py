@@ -214,7 +214,7 @@ def calcPosNegRatio(pc, bg, histMin, histMax, hist, nPixels):
 	posNegRatio = float(abs(posTotal / negTotal))
 	return posNegRatio
 
-def getImageRIH(im):
+def getRIH(im):
 	percentile = 0.0001  	# use 0-100% of histogram extrema
 	minPixels = 100.0		# minimum pixels at histogram extrema to use
 	modeTol = 0.25  		# mode should be within modeTol*stdev of 0
@@ -240,6 +240,20 @@ def getImageRIH(im):
 		return posNegRatio
 	else:
 		print "! histogram minimum above background. unable to calculate +ve/-ve intensity ratio"
+
+
+def getSAM(im):
+	from skimage import filters
+
+	hist=np.histogram(im,bins=1024);
+	stackMode = hist[1][np.argmax(hist[0])]
+	threshold = filters.threshold_otsu(im)
+	sliceMinima = [np.min(i) for i in im]
+	sliceMeans = [np.average(plane[np.where(plane > filters.threshold_otsu(plane))]) for plane in im]
+	avgmean = np.nanmean(sliceMeans)
+	minStd = np.std(sliceMinima)
+	return minStd/avgmean
+
 
 def CIP(im):
 
@@ -397,7 +411,9 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 			correlationCoeffs = [float(line.split(": ")[1]) for line in reconLog.split('\n') 
 								if 'Correlation coefficient' in line]
 			warnings = [line for line in reconLog.split('\n') if 'WARNING' in line]
-			imRIH = getImageRIH(Mrc.bindFile(procFile))
+			indat = Mrc.bindFile(procFile)
+			imRIH = getRIH(indat)
+			imSAM = getSAM(indat)
 			
 			scoreDict={ "OTFcode" : otf['code'],
 						"OTFoil"  : otf['oil'],
@@ -406,7 +422,8 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 						"OTFdate" : otf['date'],
 						"OTFwave" : otf['wavelength'],
 						"OTFpath" : otf['path'],
-						"RIH" 	  : round(imRIH,4),
+						"RIH" 	  : round(imRIH,3),
+						"SAM" 	  : round(imSAM,3),
 						"warnings": warnings,
 						"correl2" : correlationCoeffs[0:6:2],
 						"correl1" : correlationCoeffs[1:6:2],
@@ -431,14 +448,14 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 	return allScores
 
 
-def getBestOTFs(scoreDict,channels=None, report=10):
+def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 	results={}
 	if channels is None:
 		channels = list(set([s['wavelength'] for s in scoreDict]))
 	for c in channels:
 		sortedList = sorted([s for s in scoreDict if s['wavelength']==c], key=lambda x: x['score'], reverse=True)
 		results[str(c)] = sortedList[0]['OTFpath']
-		if report: 
+		if verbose: 
 			print "Channel %s:" % c
 			q=[(s['OTFcode'], s['score'], s['RIH'], s['avgmodamp2']) for s in sortedList][:report]
 			print "{:<23} {:<6} {:<5} {:<7}".format('OTFcode','Score','RIH','modamp')
@@ -452,25 +469,17 @@ def matlabReg(fname,regFile,refChannel,doMax='true'):
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 
 
-def main(fname, writeFile=True):
-
-	# check if it exists
-	if not os.path.isfile(fname):
-		sys.exit(fname + " not found... quitting")
-
+def makeBestReconstruction(fname, writeFile=True, verbose=True):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
 			sys.exit("Quitting...")
 
-	allScores=scoreOTFs(fname)
-	bestOTFs = getBestOTFs(allScores)
-	print "reconstructing final file..."
+	allScores = scoreOTFs(fname, verbose=verbose)
+	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
+	if verbose: print "reconstructing final file..."
 	reconstructed = reconstructMulti(fname, bestOTFs)
-
 	matlabReg(reconstructed,config.regFile,config.refChannel,config.doMax)
-
-
 
 	if writeFile:
 		import pandas as pd

@@ -1,3 +1,3 @@
 import sys
-from __init__ import main
-main(sys.argv[1])
+from __init__ import makeBestReconstruction
+makeBestReconstruction(sys.argv[1])
