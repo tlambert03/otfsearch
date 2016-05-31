@@ -10,7 +10,7 @@ __author__  = "Sebastian Haase <haase@msg.ucsf.edu>"
 
 __license__ = "BSD license - see LICENSE file"
 
-import numpy as N
+import numpy as np
 
 def bindFile(fn, writable=0):
     """open existing Mrc file
@@ -23,7 +23,7 @@ def bindFile(fn, writable=0):
     a = Mrc(fn, mode)
 
     if a.extension == '.dv': # flip data for orientation?
-        #return N.fliplr(a.data_withMrc(fn))
+        #return np.fliplr(a.data_withMrc(fn))
         return a.data_withMrc(fn)
     else:
         return a.data_withMrc(fn)
@@ -58,7 +58,7 @@ class Mrc:
         #20060818 if not extHdrSize and (extHdrNints or extHdrNfloats):
         #20060818     raise "extHdrNints and extHdrNfloats must be 0 if no extHdrSize"
 
-        self.m = N.memmap(path, mode=mode)
+        self.m = np.memmap(path, mode=mode)
         self.h = self.m[:1024]
 
 
@@ -147,7 +147,7 @@ class Mrc:
             nz=maxnz
 
         byteorder = '=' # 20070206 self.isByteSwapped and '>' or '<'
-        #         self.extHdrArray = N.rec.frombuffer(self.e, formats="%di4,%df4"%(self.numInts,self.numFloats),
+        #         self.extHdrArray = np.rec.frombuffer(self.e, formats="%di4,%df4"%(self.numInts,self.numFloats),
         #                                         names='int,float',
         #                                         shape=nz,
         #                                         byteorder=byteorder)
@@ -155,9 +155,9 @@ class Mrc:
                       ("float", "%s%df4"%(byteorder,self.numFloats))]
 
         #self.extHdrArray = self.e.view()
-        #self.extHdrArray.__class__ = N.recarray
+        #self.extHdrArray.__class__ = np.recarray
         #self.extHdrArray.dtype = type_descr
-        self.extHdrArray = N.recarray(shape=nz, dtype=type_descr, buf=self.e)
+        self.extHdrArray = np.recarray(shape=nz, dtype=type_descr, buf=self.e)
         if self.isByteSwapped:
             self.extHdrArray = self.extHdrArray.newbyteorder()
 
@@ -171,15 +171,15 @@ class Mrc:
         self.data = self.d.view()
         self.data.dtype = dtype
         n0 = self.data.shape[0]
-        if n0 != N.prod(shape):  # file contains INCOMPLETE sections
+        if n0 != np.prod(shape):  # file contains INCOMPLETE sections
             print "** WARNING **: file truncated - shape from header:", shape
-            n1 = N.prod(shape[1:])
+            n1 = np.prod(shape[1:])
             s0 =  n0 // n1 # //-int-division (rounds down)
             #if s0 == 1:
             #    shape = shape[1:]
             #else:
             shape = (s0,) + shape[1:]
-            self.data = self.data[:N.prod(shape)]
+            self.data = self.data[:np.prod(shape)]
 
         self.data.shape = shape
 
@@ -210,9 +210,9 @@ class Mrc:
         # print "TODO"
         shape = self.data.shape
         b = self.data.dtype.itemsize
-        eb = N.prod( shape ) * b
+        eb = np.prod( shape ) * b
         ab = len(self.d)
-        secb = N.prod( shape[-2:] ) * b
+        secb = np.prod( shape[-2:] ) * b
 
         anSecs = ab / float(secb)
         enSecs = eb / float(secb)
@@ -251,13 +251,13 @@ class Mrc:
         #NOT-WORKING:  self.data.Mrc = weakref.proxy( self )
 
         #20071123: http://www.scipy.org/Subclasses
-        class ndarray_inMrcFile(N.ndarray):
+        class ndarray_inMrcFile(np.ndarray):
             def __array_finalize__(self,obj):
                 self.Mrc = getattr(obj, 'Mrc', None)
-#         class ndarray_inMrcFile(N.memmap):
+#         class ndarray_inMrcFile(np.memmap):
 #             pass
 #             def __new__(subtype, data, info=None, dtype=None, copy=False):
-#                 #subarr = N.array(data, dtype=dtype, copy=copy)
+#                 #subarr = np.array(data, dtype=dtype, copy=copy)
 #                 #subarr = subarr.view(subtype)
 #                 subarr = data.view(subtype)
 #                 return subarr
@@ -290,7 +290,7 @@ class Mrc:
             self.flush()
             self.data.resize( shape )
         self.flush()
-        self.data = N.array(self.d, shape=shape, dtype=dtype, copy=False)
+        self.data = np.array(self.d, shape=shape, dtype=dtype, copy=False)
 
     def _newDataSizeType(self, shape, type=None ):
         """if type!=None --> self.data changes !!!!"""
@@ -299,7 +299,7 @@ class Mrc:
         #2004/05/18
         if len(shape) < 2:
             raise ValueError, "don't know about data of ndime less than 2"
-        nz = N.prod( shape[:-2] )
+        nz = np.prod( shape[:-2] )
 
         if type and type != self.data.dtype:
             self._newDataType( type )
@@ -330,7 +330,7 @@ class Mrc:
             raise ValueError, "don't know about data of ndime less than 2"
         #2004/05/18 if len(shape) != 3:
         #2004/05/18     raise "TODO: shape =! z,y,x -> just ny,nx, or (z2,z1,y,x)"
-        nz = N.prod( shape[:-2] )
+        nz = np.prod( shape[:-2] )
 
         try:
             self.data.resize( shape )
@@ -426,22 +426,22 @@ def save(a, fn, ifExists='ask', zAxisOrder=None,
     if calcMMM:
 
         def mmm(a):
-            mi=N.min(a)
-            ma=N.max(a)
-            mean=N.mean(a)
-            return N.array([mi,ma,mean], dtype='f')
+            mi=np.min(a)
+            ma=np.max(a)
+            mean=np.mean(a)
+            return np.array([mi,ma,mean], dtype='f')
 
         def mm(a):
-            mi=N.min(a)
-            ma=N.max(a)
-            return N.array([mi,ma], dtype='f')
+            mi=np.min(a)
+            ma=np.max(a)
+            return np.array([mi,ma], dtype='f')
 
         wAxis = axisOrderStr(m.hdr).find('w')
         if wAxis < 0:
-            if a.dtype != N.complex64 and a.dtype != N.complex128:
+            if a.dtype != np.complex64 and a.dtype != np.complex128:
                 m.hdr.mmm1 = mmm(a)
             else:
-                m.hdr.mmm1 = mmm(N.abs(a))
+                m.hdr.mmm1 = mmm(np.abs(a))
         else:
             nw = m.hdr.NumWaves
             m.hdr.mmm1 = mmm(a.take((0,),wAxis))
@@ -602,7 +602,7 @@ class Mrc2:
 
     def _initFromExistingFile(self):
         self.seekHeader()
-        hdrArray =  N.rec.fromfile(self._f, dtype=mrcHdr_dtype, shape=1)
+        hdrArray =  np.rec.fromfile(self._f, dtype=mrcHdr_dtype, shape=1)
 
         self.hdr = implement_hdr( hdrArray )
 
@@ -619,7 +619,7 @@ class Mrc2:
 
         if self._extHdrSize>0 and (self._extHdrNumInts>0 or self._extHdrNumFloats>0):
             nSecs = int( self._extHdrSize / self._extHdrBytesPerSec )
-            self._extHdrArray = N.rec.fromfile(self._f,
+            self._extHdrArray = np.rec.fromfile(self._f,
                                              formats="%di4,%df4"%(self._extHdrNumInts,
                                                                   self._extHdrNumFloats),
                                              names='int,float',
@@ -639,17 +639,17 @@ class Mrc2:
         self._shape = (nsecs, ny,nx) # todo: wavelenths , times
         self._shape2d = self._shape[-2:]
         self._dtype  = MrcMode2dtype( self.hdr.PixelType )
-        self._secByteSize = N.nbytes[self._dtype] * N.prod( self._shape2d )
+        self._secByteSize = np.nbytes[self._dtype] * np.prod( self._shape2d )
 
     def setHdrForShapeType(self, shape, type ):
         mrcmode = dtype2MrcMode(type)
         self.hdr.PixelType =  mrcmode
-        self.hdr.Num = shape[-1],shape[-2],  N.prod(shape[:-2])
+        self.hdr.Num = shape[-1],shape[-2],  np.prod(shape[:-2])
         self._initWhenHdrArraySet()
         #       self._shape = shape
         #       self._shape2d = self._shape[-2:]
         #       self._dtype  = type
-        #       self._secByteSize = self._dtype.itemsize * N.prod( self._shape2d )
+        #       self._secByteSize = self._dtype.itemsize * np.prod( self._shape2d )
         #       #init_simple(self._hdrArray, mrcmode, shape)
 
 
@@ -666,7 +666,7 @@ class Mrc2:
 
         if self._extHdrSize>0 and (self._extHdrNumInts>0 or self._extHdrNumFloats>0):
             nSecs = int( self._extHdrSize / self._extHdrBytesPerSec )
-            self._extHdrArray = N.recarray(nSecs,#None,#self._f,
+            self._extHdrArray = np.recarray(nSecs,#None,#self._f,
                                            formats="%di4,%df4"%(self._extHdrNumInts,
                                                                 self._extHdrNumFloats),
                                            names='int,float')
@@ -704,7 +704,7 @@ class Mrc2:
         if i is not None:
             self.seekSec(i)
 
-        a = N.fromfile(self._f, self._dtype, N.prod(self._shape2d))
+        a = np.fromfile(self._f, self._dtype, np.prod(self._shape2d))
         a.shape = self._shape2d
         return a
 
@@ -725,7 +725,7 @@ class Mrc2:
         if i is not None:
             self.seekSec(i)
 
-        a = N.fromfile(self._f, self._dtype, nz*N.prod(self._shape2d))
+        a = np.fromfile(self._f, self._dtype, nz*np.prod(self._shape2d))
         a.shape = (nz,)+self._shape2d
         return a
 
@@ -766,12 +766,12 @@ def minExtHdrSize(nSecs, bytesPerSec):
 
 
 def MrcMode2dtype(mode):
-    PixelTypes = (N.uint8, N.int16, N.float32,  # 0 1 2
-                  N.float32, # FIXME               # 3
-                  N.complex64,                    # 4
-                  N.int16,                        # 5 (IW_EMTOM)
-                  N.uint16,                       # 6
-                  N.int32                         # 7
+    PixelTypes = (np.uint8, np.int16, np.float32,  # 0 1 2
+                  np.float32, # FIXME               # 3
+                  np.complex64,                    # 4
+                  np.int16,                        # 5 (IW_EMTOM)
+                  np.uint16,                       # 6
+                  np.int32                         # 7
                   )
 
     if mode<0 or mode>7:
@@ -780,21 +780,21 @@ def MrcMode2dtype(mode):
     return PixelTypes[ int(mode) ]
 
 def dtype2MrcMode(dtype):
-    if dtype == N.uint8:
+    if dtype == np.uint8:
         return 0
-    if dtype == N.int16:
+    if dtype == np.int16:
         return 1
-    if dtype == N.float32:
+    if dtype == np.float32:
         return 2
-#      if type == N.int8:
+#      if type == np.int8:
 #          return 3
-    if dtype == N.complex64:
+    if dtype == np.complex64:
         return 4
-#      if type == N.In:
+#      if type == np.In:
 #          return 5
-    if dtype == N.uint16:
+    if dtype == np.uint16:
         return 6
-    if dtype == N.int32:
+    if dtype == np.int32:
         return 7
     raise TypeError, "MRC does not support %s (%s)"% (dtype.name, dtype)
 
@@ -885,13 +885,13 @@ def implement_hdr(hdrArray):
 def makeHdrArray(buffer=None):
     if buffer is not None:
         #20070131  h = buffer.view()
-        #20060131  h.__class__ = N.recarray
+        #20060131  h.__class__ = np.recarray
         h=buffer
         h.dtype = mrcHdr_dtype
         import weakref         #20070131   CHECK if this works
         h = weakref.proxy( h ) #20070131   CHECK if this works
     else:
-        h = N.recarray(1, mrcHdr_dtype)
+        h = np.recarray(1, mrcHdr_dtype)
 
     #20060818 return h
     return implement_hdr(h)
@@ -1051,7 +1051,7 @@ def init_simple(hdr, mode, nxOrShape, ny=None, nz=None):
             nz,ny,nx  = nxOrShape
         else:
             ny,nx  = nxOrShape[-2:]
-            nz     = N.prod(nxOrShape[:-2])
+            nz     = np.prod(nxOrShape[:-2])
 
     else:
         nx = nxOrShape
@@ -1112,7 +1112,7 @@ def initHdrArrayFrom(hdrDest, hdrSrc): #, mode, nxOrShape, ny=None, nz=None):
             nz,ny,nx  = nxOrShape
         else:
             ny,nx  = nxOrShape[-2:]
-            nz     = N.prod(nxOrShape[:-2])
+            nz     = np.prod(nxOrShape[:-2])
 
     else:
         nx = nxOrShape

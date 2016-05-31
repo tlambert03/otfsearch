@@ -7,7 +7,6 @@ import numpy as np
 from scipy import stats
 import config
 
-
 # OTF handling functions
 
 def makeOTFdict(dir,template=config.OTFtemplate,delim=config.OTFdelim,ext=config.OTFextension):
