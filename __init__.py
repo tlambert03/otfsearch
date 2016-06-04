@@ -472,6 +472,9 @@ def matlabReg(fname,regFile,refChannel,doMax):
 	maxbool = 'true' if doMax else 'false'
 	matlabString = "%s('%s','%s', %d,'DoMax', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool)
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
+	outfiles = [os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+".tif"]
+	if doMax: outfiles.append(os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"-MAX.tif")
+	return outfiles
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
@@ -489,8 +492,8 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 
 	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 	if doReg and numWaves>1: # perform channel registration
-		if verbose: print "perfoming channel registration..."
-		matlabReg(reconstructed,regFile,refChannel,doMax)
+		if verbose: print "perfoming channel registration in matlab..."
+		registered = matlabReg(reconstructed,regFile,refChannel,doMax) # will be a list
 	
 	if writeFile: # write the file to csv
 		import pandas as pd

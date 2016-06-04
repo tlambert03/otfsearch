@@ -3,6 +3,7 @@
 host='cb-cbmf-omx.med.harvard.edu/data1'
 reconApp='/usr/local/bin/sir'
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
+remotescript = '/mnt/data0/SIMrecon/otfsearch/'
 
 cropsize=256
 maxAge = ''

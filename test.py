@@ -32,8 +32,6 @@ def transferFile(inputFile, remotepath, server, username):
 		response = sftp.put(inputFile, remoteFile)
 	except:
 		statusTxt.set( e )
-		e = sys.exc_info()[0]
-		print e
 	statusTxt.set( "File transferred to remote host")
 	print(response)
 
@@ -42,8 +40,7 @@ def transferFile(inputFile, remotepath, server, username):
 	return remoteFile
 
 
-def triggerRemoteOTFsearch(inputFile, remotepath, server, username):
-
+def triggerRemoteOTFsearch(remoteFile):
 	statusTxt.set( "sending reconstruction command to host ..." )
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
@@ -51,24 +48,36 @@ def triggerRemoteOTFsearch(inputFile, remotepath, server, username):
 	try:
 		ssh.connect(server, username=username)
 	except paramiko.ssh_exception.PasswordRequiredException as e:
-		print "Password required"
-		print e
-
-	statusTxt.set( "Connection successful, copying: " + os.path.basename(inputFile))
-	sftp = ssh.open_sftp()
-	try:
-		remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-		response = sftp.put(inputFile, remoteFile)
+		statusTxt.set( "Password required" )
+	except paramiko.AuthenticationException:
+		statusTxt.set("Authentication failed when connecting to %s" % host)
+		sys.exit(1)
 	except:
-		statusTxt.set( e )
-		e = sys.exc_info()[0]
-		print e
-	statusTxt.set( "File transferred to remote host")
-	print(response)
+		statusTxt.set("Could not SSH to %s" % host)
+		sys.exit(1)
 
-	sftp.close()
+
+	import os
+	print os.path.realpath(__file__)
+	statusTxt.set( "Connection successful, copying: " + os.path.basename(inputFile))
+	
+	# Send the command (non-blocking)
+	command = ['python', C.remotescript, remoteFile, '-a', maxOTFage.get(), '-n', maxOTFnum.get(), '-l', oilMin.get(), '-m', oilMax.get(), '-p', 
+				cropsize.get() '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), '-r', RefChannel.geT(), '-x', str(doMax.get()), '-g', str(doReg.get())]
+	stdin, stdout, stderr = ssh.exec_command(" ".join(command))
+
+	# Wait for the command to terminate
+	while not stdout.channel.exit_status_ready():
+		# Only print data if there is data to read in the channel
+		if stdout.channel.recv_ready():
+			rl, wl, xl = select.select([stdout.channel], [], [], 0.0)
+			if len(rl) > 0:
+				# Print data from stdout
+				statusTxt.set(stdout.channel.recv(1024))
+				print stdout.channel.recv(1024)
+
+	statusTxt.set("Command done, closing SSH connection")
 	ssh.close()
-	return remoteFile
 
 
 def getRawFile():
@@ -82,7 +91,7 @@ def getSIRconfigDir():
 	SIRconfigDir.set( filename )
 def getRegFile():
 	filename = tkFileDialog.askopenfilename()
-	maxOTFage.set( filename )
+	RegFile.set( filename )
 
 
 def quit():
@@ -102,8 +111,7 @@ def doit():
 
 #	tkMessageBox.showinfo("Copying", "Copying...")
 	remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
-	#triggerRemoteOTFsearch(inputFile)
-
+	triggerRemoteOTFsearch(remoteFile)
 
 
 root = Tk.Tk()
