@@ -149,7 +149,9 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 	if numWaves > 1:
 		splitfiles = splitChannels(inFile, reconWaves)
 	else:
-		splitfiles = [inFile]
+		wave = Mrc.open(file).hdr.wave[0]
+		otf = OTFdict[str(wave)]
+		return reconstruct(file, otf)
 
 	filesToMerge = []
 	for file in splitfiles:
@@ -348,7 +350,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, oi
 	imSize = header.Num
 	numPlanes = imSize[2]/(numTimes*numWaves) # does this work?
 
-	# cut timelapse to the firs timepoint
+	# cut timelapse to the first timepoint
 	if numTimes>1:
 		print("Timelapse detected, clipping to the first timepoint")
 		fname=cropTime(fname)

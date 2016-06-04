@@ -1,12 +1,16 @@
 #default values
 
-host='cb-cbmf-omx.med.harvard.edu/data1'
+
+server='cb-cbmf-latwork.med.harvard.edu'
+username='user'
+remotepath='/mnt/data0/remote/'
+
 reconApp='/usr/local/bin/sir'
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
 remotescript = '/mnt/data0/SIMrecon/otfsearch/'
 
 cropsize=256
-maxAge = ''
+maxAge = None
 maxNum = 10
 oilMin = 1510
 oilMax = 1522
@@ -23,8 +27,6 @@ OTFextension = '.otf'
 OTFdir = '/mnt/data0/SIMrecon/OTFs'
 defaultOTFdir = '/mnt/data0/SIMrecon/OTFs/defaultOTFs'
 
-server='cb-cbmf-latwork.med.harvard.edu'
-username='user'
-remotepath='/mnt/data0/remote/'
-
 writeFile=False
+
+

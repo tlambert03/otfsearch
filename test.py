@@ -15,7 +15,7 @@ except ImportError as e:
 	sys.exit()
 
 def transferFile(inputFile, remotepath, server, username):
-	statusTxt.set( "connecting to" + C.server + "..." )
+	statusTxt.set( "connecting to " + C.server + "..." )
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
 	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
@@ -34,16 +34,17 @@ def transferFile(inputFile, remotepath, server, username):
 		statusTxt.set( e )
 	statusTxt.set( "File transferred to remote host")
 	print(response)
-
+	
 	sftp.close()
 	ssh.close()
 	return remoteFile
 
 
-def triggerRemoteOTFsearch(remoteFile):
-	statusTxt.set( "sending reconstruction command to host ..." )
+def triggerRemoteOTFsearch(remoteFile, server, username):
+	statusTxt.set( "connecting to " + C.server + "..." )
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
+	import os
 	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
 	try:
 		ssh.connect(server, username=username)
@@ -56,15 +57,17 @@ def triggerRemoteOTFsearch(remoteFile):
 		statusTxt.set("Could not SSH to %s" % host)
 		sys.exit(1)
 
+	statusTxt.set( "Connection successful, sending reconstruction command")	
 
-	import os
-	print os.path.realpath(__file__)
-	statusTxt.set( "Connection successful, copying: " + os.path.basename(inputFile))
-	
 	# Send the command (non-blocking)
-	command = ['python', C.remotescript, remoteFile, '-a', maxOTFage.get(), '-n', maxOTFnum.get(), '-l', oilMin.get(), '-m', oilMax.get(), '-p', 
-				cropsize.get() '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), '-r', RefChannel.geT(), '-x', str(doMax.get()), '-g', str(doReg.get())]
-	stdin, stdout, stderr = ssh.exec_command(" ".join(command))
+	command = ['python', C.remotescript, remoteFile, '-n', maxOTFnum.get(), '-l', OilMin.get(), '-m', OilMax.get(), 
+		'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), '-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
+	if maxOTFage.get(): 
+		command.extend(['-a', maxOTFage.get()])
+
+	# hack for now...
+	stdin, stdout, stderr = ssh.exec_command("export PATH=~/anaconda2/bin:$PATH; source /mnt/data0/Applications/priism-4.4.0/Priism_setup.sh; " 
+		+ " ".join([str(s) for s in command]))
 
 	# Wait for the command to terminate
 	while not stdout.channel.exit_status_ready():
@@ -111,7 +114,7 @@ def doit():
 
 #	tkMessageBox.showinfo("Copying", "Copying...")
 	remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
-	triggerRemoteOTFsearch(remoteFile)
+	triggerRemoteOTFsearch(remoteFile, C.server, C.username)
 
 
 root = Tk.Tk()
@@ -162,12 +165,12 @@ Tk.Label(center, text="(make it a power of 2)").grid(row=3, column=2, sticky='W'
 Tk.Label(center, text="Oil Min RI:").grid(row=4, sticky='E')
 OilMin = Tk.StringVar()
 OilMin.set(C.oilMin)
-OilMin = Tk.Entry(center, textvariable=OilMin, width=15).grid(row=4, column=1, sticky='W')
+OilMinEntry = Tk.Entry(center, textvariable=OilMin, width=15).grid(row=4, column=1, sticky='W')
 
 Tk.Label(center, text="Oil Max RI:").grid(row=5, sticky='E')
 OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
-OilMax = Tk.Entry(center, textvariable=OilMax, width=15).grid(row=5, column=1, sticky='W')
+OilMaxEntry = Tk.Entry(center, textvariable=OilMax, width=15).grid(row=5, column=1, sticky='W')
 
 Tk.Label(center, text="OTF Directory:").grid(row=6, sticky='E')
 OTFdir = Tk.StringVar()
@@ -195,7 +198,7 @@ RegFile.set( C.regFile )
 Tk.Label(center, text="Reference Channel:").grid(row=10, sticky='E')
 RefChannel = Tk.StringVar()
 RefChannel.set(C.refChannel)
-RefChannel = Tk.Entry(center, textvariable=RefChannel, width=15).grid(row=10, column=1, sticky='W')
+RefChannelEntry = Tk.Entry(center, textvariable=RefChannel, width=15).grid(row=10, column=1, sticky='W')
 Tk.Label(center, text="(435,477,528,541,608, or 683)").grid(row=10, column=2, sticky='W')
 
 Tk.Label(center, text="Do Max Projection").grid(row=11, sticky='E')
