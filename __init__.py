@@ -149,9 +149,9 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 	if numWaves > 1:
 		splitfiles = splitChannels(inFile, reconWaves)
 	else:
-		wave = Mrc.open(file).hdr.wave[0]
+		wave = Mrc.open(inFile).hdr.wave[0]
 		otf = OTFdict[str(wave)]
-		return reconstruct(file, otf)
+		return reconstruct(inFile, otf)
 
 	filesToMerge = []
 	for file in splitfiles:
