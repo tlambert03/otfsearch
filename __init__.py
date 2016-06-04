@@ -487,7 +487,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	if verbose: print "reconstructing final file..."
 	reconstructed = reconstructMulti(fname, bestOTFs)
 
-	numWaves = Mrc.open(inFile).hdr.NumWaves
+	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 	if doReg and numWaves>1: # perform channel registration
 		if verbose: print "perfoming channel registration..."
 		matlabReg(reconstructed,regFile,refChannel,doMax)
