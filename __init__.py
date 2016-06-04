@@ -149,9 +149,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 	if numWaves > 1:
 		splitfiles = splitChannels(inFile, reconWaves)
 	else:
-		wave = Mrc.open(inFile).hdr.wave[0]
-		otf = OTFdict[str(wave)]
-		return reconstruct(inFile, otf)
+		splitfiles = [inFile]
 
 	filesToMerge = []
 	for file in splitfiles:
@@ -174,7 +172,10 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 		namesplit = os.path.splitext(inFile)
 		outFile=namesplit[0]+"_PROC"+namesplit[1]
 
-	mergeChannels(filesToMerge, outFile)
+	if numWaves > 1:
+		mergeChannels(filesToMerge, outFile)
+	else:
+		outFile=procFile
 
 	#cleanup files
 	for f in splitfiles: os.remove(f)
