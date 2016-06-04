@@ -125,7 +125,7 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None):
 
 	if outFile is None:
 		namesplit = os.path.splitext(inFile)
-		outFile=namesplit[0]+"_PROC"+str(end)+namesplit[1]
+		outFile=namesplit[0]+"_PROC"+namesplit[1]
 
 	if configFile is None:
 		configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
