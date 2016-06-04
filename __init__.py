@@ -174,12 +174,11 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 
 	if numWaves > 1:
 		mergeChannels(filesToMerge, outFile)
+		#cleanup files
+		for f in splitfiles: os.remove(f)
+		for f in filesToMerge: os.remove(f)
 	else:
 		outFile=procFile
-
-	#cleanup files
-	for f in splitfiles: os.remove(f)
-	for f in filesToMerge: os.remove(f)
 
 	return outFile
 
