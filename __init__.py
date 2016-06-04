@@ -19,7 +19,7 @@ def makeOTFdict(dir,template=config.OTFtemplate,delim=config.OTFdelim,ext=config
 		D[n]['code']=getOTFcode(os.path.join(dir,allOTFs[n]))
 	return D
 
-def getMatchingOTFs(otfdict, wave, oilMin, oilMax, maxAge=config.maxAge, maxNum=config.maxNum):
+def getMatchingOTFs(otfdict, wave, oilMin, oilMax, maxAge=None, maxNum=None):
 	import time
 	OTFlist=[O for O in otfdict if O['wavelength']==str(wave) and int(O['oil'])>=oilMin and int(O['oil'])<=oilMax]
 	if maxAge is not None:
@@ -91,10 +91,14 @@ def crop(fileIn, cropsize, fileOut=None):
 # helpers 
 
 def isRawSIMfile(fname):
+	if os.path.splitext(fname)[1] != ".dv":
+		print "not a raw SIM file"
+		return 0
 	for q in ['SIR','PROC']:
 		if q in fname: return 0
 	reader = Mrc.open(fname)
 	if reader.hdr.Num[2]%15:
+		print "not a raw SIM file"
 		return 0
 	return 1
 
@@ -106,7 +110,7 @@ def query_yes_no(question):
 	valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
 
 	while True:
-		sys.stdout.write(question + prompt)
+		sys.stdout.write(question)
 		choice = raw_input().lower()
 		if choice in valid:
 			return valid[choice]
@@ -313,18 +317,17 @@ def printFormattedScores(scoreList):
 	for i in scoreList: print "{:<8} {:<10} {:<23} {:<8} {:<05.3}    {:<04.3}".format(i['wavelength'], i['channelDecay'], i['OTFcode'], i['OTFoil'], np.average(i['modamp2']), i['RIH'])
 
 
-def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
+def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, oilMin=1510, oilMax=1524, maxAge=None, maxNum=None, verbose=True, cleanup=True):
+	'''
+	Takes an input file and reconstructs it by all of the OTFs that match certain criteria
+
+	'''
+
 	import shutil
 
 	# check if it exists
 	if not os.path.isfile(inputFile):
 		sys.exit(inputFile + " not found... quitting")
-
-	# check if it appears to be a raw SIM file
-	if not isRawSIMfile(inputFile):
-		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
-			sys.exit("Quitting...")
-
 
 	# create temp folder for reconstructions
 	tmpDir = os.path.splitext(inputFile)[0]+"_tmp"
@@ -335,6 +338,7 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 	# create symlink of original file in tmp
 	fname=os.path.join(tmpDir,os.path.basename(inputFile))
 	os.symlink(inputFile, fname)
+
 
 	# get file info
 	header = Mrc.open(fname).hdr
@@ -350,9 +354,9 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 		fname=cropTime(fname)
 
 	# crop to a central region to speed things up
-	if imSize[0]>config.cropsize or imSize[1]>config.cropsize:
-		print "Cropping to the center %d pixels..." % config.cropsize
-		fname=crop(fname, config.cropsize)
+	if imSize[0]>cropsize or imSize[1]>cropsize:
+		print "Cropping to the center %d pixels..." % cropsize
+		fname=crop(fname, cropsize)
 
 	if reconWaves is not None:
 		if isinstance(reconWaves,list):
@@ -378,7 +382,7 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 		splitfiles = [fname]
 
 	# generate searchable dict of OTFs in a directory
-	otfDict = makeOTFdict(config.OTFdir)
+	otfDict = makeOTFdict(OTFdir)
 
 	allScores=[]
 	# reconstruct each channel file by all matching OTFs
@@ -401,7 +405,7 @@ def scoreOTFs(inputFile, reconWaves=None, verbose=True, cleanup=True):
 					"wavelength" : wave
 		}
 
-		OTFlist = getMatchingOTFs(otfDict,wave,config.oilMin,config.oilMax)
+		OTFlist = getMatchingOTFs(otfDict,wave,oilMin,oilMax, maxAge=maxAge, maxNum=maxNum)
 
 		for otf in OTFlist:
 			procFile=namesplit[0] + "_" + otf['code'] + "_PROC" + namesplit[1]
@@ -464,24 +468,31 @@ def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 	return results
 
 
-def matlabReg(fname,regFile,refChannel,doMax='true'):
-	matlabString = "%s('%s','%s', %d,'DoMax', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,doMax)
+def matlabReg(fname,regFile,refChannel,doMax):
+	maxbool = 'true' if doMax else 'false'
+	matlabString = "%s('%s','%s', %d,'DoMax', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool)
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 
 
-def makeBestReconstruction(fname, writeFile=True, verbose=True):
+def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
+	reconWaves=None, regFile=config.regFile, refChannel=config.refChannel, doMax=config.doMax, doReg=config.doReg, cleanup=True, verbose=True,):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
 			sys.exit("Quitting...")
 
-	allScores = scoreOTFs(fname, verbose=verbose)
+	allScores = scoreOTFs(fname, cropsize=cropsize, OTFdir=config.OTFdir, reconWaves=reconWaves, oilMin=oilMin, oilMax=oilMax, maxAge=maxAge, maxNum=maxNum, verbose=verbose, cleanup=cleanup)
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
+
 	if verbose: print "reconstructing final file..."
 	reconstructed = reconstructMulti(fname, bestOTFs)
-	matlabReg(reconstructed,config.regFile,config.refChannel,config.doMax)
 
-	if writeFile:
+	numWaves = Mrc.open(inFile).hdr.NumWaves
+	if doReg and numWaves>1: # perform channel registration
+		if verbose: print "perfoming channel registration..."
+		matlabReg(reconstructed,regFile,refChannel,doMax)
+	
+	if writeFile: # write the file to csv
 		import pandas as pd
 		scoreDF = pd.DataFrame(allScores)
 		scoreDF.to_csv(os.path.splitext(fname)[0]+"_scores.csv")
