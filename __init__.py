@@ -95,7 +95,7 @@ def isRawSIMfile(fname):
 		print "not a raw SIM file"
 		return 0
 	for q in ['SIR','PROC']:
-		if q in fname: return 0
+		if q in os.path.basename(fname): return 0
 	reader = Mrc.open(fname)
 	if reader.hdr.Num[2]%15:
 		print "not a raw SIM file"
