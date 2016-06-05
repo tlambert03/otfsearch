@@ -152,7 +152,7 @@ def query_yes_no(question):
 
 
 # reconstruction
-def reconstruct(inFile, otfFile, outFile=None, configFile=None, configDir=None):
+def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, configDir=None):
 	wave = Mrc.open(inFile).hdr.wave[0]
 
 	if outFile is None:
@@ -166,6 +166,8 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, configDir=None):
 			configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
 
 	commandArray=[config.reconApp,inFile,outFile,otfFile,'-c',configFile]
+	if wiener:
+		commandArray.extend(['--wiener',str(wiener)])
 	process = subprocess.Popen(commandArray, stdout=subprocess.PIPE)
 	output = process.communicate()[0]
 	return output
@@ -227,12 +229,12 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 			for D in reconLogs:
 				the_file.write("#"*80+'\n')
 				the_file.write("\n")
+				the_file.write("WAVELENGTH: %d \n" % D['wave'])
 				the_file.write("FILE: %s \n" % D['file'])
 				the_file.write("OTF: %s \n" % D['otf'])
-				the_file.write("WAVELENGTH: %d \n" % D['wave'])
 				indat = Mrc.bindFile(D['procFile'])
 				imRIH = getRIH(indat)
-				the_file.write("RECONSTRUCTUION SCORE (MMR): %0.2f \n" % imRIH)
+				the_file.write("RECONSTRUCTION SCORE (MMR): %0.2f \n" % imRIH)
 				the_file.write("\n")
 				the_file.write("RECONSTRUCTION LOG: \n")
 				the_file.write(D['log'])
@@ -247,7 +249,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 	else:
 		outFile=filesToMerge[0]
 
-	return outFile
+	return (outFile,logFile)
 
 
 
@@ -557,7 +559,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
 	if verbose: print "reconstructing final file..."
-	reconstructed = reconstructMulti(fname, bestOTFs, reconWaves=reconWaves)
+	reconstructed,logFile = reconstructMulti(fname, bestOTFs, reconWaves=reconWaves)
 
 	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 	if doReg and numWaves>1: # perform channel registration
