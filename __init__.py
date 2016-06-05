@@ -221,15 +221,17 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 			namesplit=os.path.splitext(outFile)
 			logFile=namesplit[0]+"_LOG.txt"
 		with open(logFile, 'w') as the_file:
-			the_file.write("INPUT FILE: %s" % inFile)
+			the_file.write("INPUT FILE: %s \n" % inFile)
 			for D in reconLogs:
 				the_file.write("#"*80+'\n')
-				the_file.write("WAVELENGTH: %d" % D['wave'])
-				the_file.write("OTF: %s" % D['otf'])
+				the_file.write("#"*80+'\n')
+				the_file.write("WAVELENGTH: %d \n" % D['wave'])
+				the_file.write("OTF: %s \n" % D['otf'])
 				indat = Mrc.bindFile(D['procFile'])
 				imRIH = getRIH(indat)
-				the_file.write("RECONSTRUCTUION SCORE (MMR): %0.2f" % imRIH)
+				the_file.write("RECONSTRUCTUION SCORE (MMR): %0.2f \n" % imRIH)
 				the_file.write("\n")
+				the_file.write("RECONSTRUCTION LOG: \n")
 				the_file.write(D['log'])
 				the_file.write("\n")
 
