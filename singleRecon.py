@@ -3,7 +3,8 @@ import os
 import argparse
 import config
 import math
-from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime
+from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime, isRawSIMfile, query_yes_no
+import Mrc
 
 
 def otfAssignment(string):
@@ -43,15 +44,33 @@ otfDict = {}
 for item in args['otf']:
 	otfDict.update(item[0])
 
-print args
+fname = args['inputFile'].name
+header = Mrc.open(fname).hdr
+numWaves = header.NumWaves
+waves = [i for i in header.wave if i != 0]
+numTimes = header.NumTimes
 
-if args['time'] and args['time']>0:
-	inputFile = cropTime(args['inputFile'].name, end=args['time'])
+if not isRawSIMfile(fname):
+	if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
+		sys.exit("Quitting...")
+
+if args['time'] and args['time']>0 and numTimes > 1:
+	inputFile = cropTime(fname, end=args['time'])
+	timecropped = 1
 else:
-	inputFile = args['inputFile'].name
+	inputFile = fname
+	timecropped = 0
+
+if args['channels']:
+	for c in args['channels']:
+		if c not in waves:
+			print "Channel %d requested, but not in file... skipping" % c
+	reconWaves=sorted([c for c in args['channels'] if c in waves])
+else:
+	reconWaves= waves
 
 reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=args['channels'], outFile=args['outputFile'], configDir=args['configDir'])
 
 # cleanup the file that was made
-if args['time'] and args['time']>0:
+if timecropped:
 	os.remove(inputFile)

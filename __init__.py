@@ -193,10 +193,10 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDi
 		splitfiles = [inFile]
 
 	filesToMerge = []
-	print "Reconstructing multiple wavelengths..."
 	for file in splitfiles:
 		wave = Mrc.open(file).hdr.wave[0]
-
+		print "Reconstructing channel %d ..." % wave
+		
 		if OTFdict.has_key(str(wave)):
 			otf = OTFdict[str(wave)]
 		elif os.path.exists(os.path.join(config.defaultOTFdir,str(wave)+".otf")):
