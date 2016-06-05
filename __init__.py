@@ -193,6 +193,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDi
 		splitfiles = [inFile]
 
 	filesToMerge = []
+	print "Reconstructing multiple wavelengths..."
 	for file in splitfiles:
 		wave = Mrc.open(file).hdr.wave[0]
 
@@ -210,6 +211,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDi
 		filesToMerge.append(procFile)
 
 	if numWaves > 1:
+		print "Merging multi-channel reconstructions..."
 		mergeChannels(filesToMerge, outFile)
 		#cleanup files
 		for f in splitfiles: os.remove(f)

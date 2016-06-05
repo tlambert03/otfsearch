@@ -3,7 +3,7 @@ import os
 import argparse
 import config
 import math
-from __init__ import makeBestReconstruction, goodChannel, cropCheck, cropTime
+from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime
 
 
 def otfAssignment(string):
@@ -50,7 +50,7 @@ if args['time'] and args['time']>0:
 else:
 	inputFile = args['inputFile'].name
 
-reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=args['channels'], outFile=args['outputFile'], configDir=args['otf'])
+reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=args['channels'], outFile=args['outputFile'], configDir=args['configDir'])
 
 # cleanup the file that was made
 if args['time'] and args['time']>0:
