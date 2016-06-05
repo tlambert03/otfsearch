@@ -211,11 +211,27 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
 		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, configDir=configDir), 
 							'wave' : wave,
-							'file' : file,
 							'otf'  : otf,
 							'procFile' : procFile
 						})
 		filesToMerge.append(procFile)
+
+	if writeLog:
+		if not logFile: 
+			namesplit=os.path.splitext(outFile)
+			logFile=namesplit[0]+"_LOG.txt"
+		with open(logFile, 'w') as the_file:
+			the_file.write("INPUT FILE: %s" % inFile)
+			for D in reconLogs:
+				the_file.write("#"*80+'\n')
+				the_file.write("WAVELENGTH: %d" % D['log'])
+				the_file.write("OTF: %d" % D['otf'])
+				indat = Mrc.bindFile(D['procFile'])
+				imRIH = getRIH(indat)
+				the_file.write("RECONSTRUCTUION SCORE (MMR): %0.2f" % imRIH)
+				the_file.write("\n")
+				the_file.write(D['log'])
+				the_file.write("\n")
 
 	if len(filesToMerge) > 1:
 		print "Merging multi-channel reconstructions..."
@@ -225,15 +241,6 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 		for f in filesToMerge: os.remove(f)
 	else:
 		outFile=filesToMerge[0]
-
-	if writeLog:
-		if not logFile: 
-			namesplit=os.path.splitext(outFile)
-			logFile=namesplit[0]+"_LOG.txt"
-		with open(logFile, 'w') as the_file:
-			for L in reconLogs:
-				the_file.write(L['log'])
-
 
 	return outFile
 
