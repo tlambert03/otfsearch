@@ -212,6 +212,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, configDir=configDir), 
 							'wave' : wave,
 							'otf'  : otf,
+							'file' : file,
 							'procFile' : procFile
 						})
 		filesToMerge.append(procFile)
@@ -222,11 +223,13 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 			logFile=namesplit[0]+"_LOG.txt"
 		with open(logFile, 'w') as the_file:
 			the_file.write("INPUT FILE: %s \n" % inFile)
+			the_file.write("\n")
 			for D in reconLogs:
 				the_file.write("#"*80+'\n')
-				the_file.write("#"*80+'\n')
-				the_file.write("WAVELENGTH: %d \n" % D['wave'])
+				the_file.write("\n")
+				the_file.write("FILE: %s \n" % D['file'])
 				the_file.write("OTF: %s \n" % D['otf'])
+				the_file.write("WAVELENGTH: %d \n" % D['wave'])
 				indat = Mrc.bindFile(D['procFile'])
 				imRIH = getRIH(indat)
 				the_file.write("RECONSTRUCTUION SCORE (MMR): %0.2f \n" % imRIH)
