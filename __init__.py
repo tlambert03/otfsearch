@@ -39,7 +39,37 @@ def decodeOTFcode(code,template=config.OTFtemplate,delim=config.OTFdelim):
 	pass
 
 
+def goodChannel(string):
+	import argparse
+	goodChannels=config.valid['waves']
+	value = int(string)
+	if value not in goodChannels:
+	    msg = "%r is not one of the acceptable channel names: %s" % (string, ', '.join(str(x) for x in goodChannels))
+	    raise argparse.ArgumentTypeError(msg)
+	return value
+
+def cropCheck(string):
+	import argparse
+	value = int(string)
+	sqrt = math.sqrt(value)
+	if sqrt != int(sqrt):
+	    msg = "%r is not a perfect square" % string
+	    raise argparse.ArgumentTypeError(msg)
+	if value > 1024 or value < 32:
+	    msg = "Cropsize must be between 32 and 1024"
+	    raise argparse.ArgumentTypeError(msg)
+	return value
+
+
 # image file manipulation
+
+def callPriism(command):
+	try:
+		subprocess.call(command)
+	except EOFError:
+		msg = "Priism may not be setup correctly...\n"
+		msg += "Source the priism installation and try again"
+		raise EOFError(msg)
 
 def splitChannels(fname, waves=None):
 	reader = Mrc.open(fname) 
@@ -51,7 +81,7 @@ def splitChannels(fname, waves=None):
 		if w in imWaves:
 			print "Extracting channel %d..." % w
 			out=namesplit[0]+"-"+str(w)+namesplit[1]
-			subprocess.call(['CopyRegion', fname, out, "-w="+str(w)])
+			callPriism(['CopyRegion', fname, out, "-w="+str(w)])
 			files.append(out)
 	return files
 
@@ -61,7 +91,7 @@ def mergeChannels(fileList, outFile=None):
 		outFile=namesplit[0]+"_MRG"+namesplit[1]
 	command = ['mergemrc', '-append_waves', outFile]
 	command.extend(fileList)
-	subprocess.call(command)
+	callPriism(command)
 	return outFile
 
 
@@ -69,7 +99,7 @@ def cropTime(fileIn, fileOut=None, start=1, end=1, step=1):
 	if fileOut is None:
 		namesplit = os.path.splitext(fileIn)
 		fileOut=namesplit[0]+"_T"+str(end)+namesplit[1]
-	subprocess.call(['CopyRegion', fileIn, fileOut, "-t="+str(start)+":"+str(end)+":"+str(step)])
+	callPriism(['CopyRegion', fileIn, fileOut, "-t="+str(start)+":"+str(end)+":"+str(step)])
 	return fileOut
 
 def crop(fileIn, cropsize, fileOut=None):
@@ -84,8 +114,9 @@ def crop(fileIn, cropsize, fileOut=None):
 	if fileOut is None:
 		namesplit = os.path.splitext(fileIn)
 		fileOut=namesplit[0]+"_cropped"+namesplit[1]
-	
-	subprocess.call(['CopyRegion', fileIn, fileOut, "-x="+str(cropstartX)+":"+str(cropendX), "-y="+str(cropstartY)+":"+str(cropendY)])
+
+
+	callPriism(['CopyRegion', fileIn, fileOut, "-x="+str(cropstartX)+":"+str(cropendX), "-y="+str(cropstartY)+":"+str(cropendY)])
 	return fileOut
 
 
@@ -121,7 +152,7 @@ def query_yes_no(question):
 
 
 # reconstruction
-def reconstruct(inFile, otfFile, outFile=None, configFile=None):
+def reconstruct(inFile, otfFile, outFile=None, configFile=None, configDir=None):
 	wave = Mrc.open(inFile).hdr.wave[0]
 
 	if outFile is None:
@@ -129,7 +160,10 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None):
 		outFile=namesplit[0]+"_PROC"+namesplit[1]
 
 	if configFile is None:
-		configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
+		if configDir is not None:
+			configFile = os.path.join(configDir,str(wave)+'config')
+		else:
+			configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
 
 	commandArray=[config.reconApp,inFile,outFile,otfFile,'-c',configFile]
 	process = subprocess.Popen(commandArray, stdout=subprocess.PIPE)
@@ -137,11 +171,17 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None):
 	return output
 
 
-def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFile=None):
+def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDir=None):
 	"""Splits multi-channel file into individual channels
 	then reconstructs each channel and merges the results
 	provide OTFdict as { '528' : '/path/to/528/otf', '608' : 'path/to/608/otf'}
 	"""
+
+	if outFile is None:
+		namesplit = os.path.splitext(inFile)
+		outFile=namesplit[0]+"_PROC"+namesplit[1]
+
+
 	header = Mrc.open(inFile).hdr
 	numWaves = header.NumWaves
 	waves = [i for i in header.wave if i != 0]
@@ -166,12 +206,8 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configFi
 
 		namesplit = os.path.splitext(file)
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
-		reconLog = reconstruct(file, otf, procFile)
+		reconLog = reconstruct(file, otf, procFile, configDir=configDir)
 		filesToMerge.append(procFile)
-
-	if outFile is None:
-		namesplit = os.path.splitext(inFile)
-		outFile=namesplit[0]+"_PROC"+namesplit[1]
 
 	if numWaves > 1:
 		mergeChannels(filesToMerge, outFile)

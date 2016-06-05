@@ -21,7 +21,7 @@ except ImportError as e:
 
 outqueue = [0]
 
-def startThread(inputFile, remotepath, server, username):
+def transferFile(inputFile, remotepath, server, username):
 	global outqueue
 	statusTxt.set( "connecting to " + C.server + "..." )
 	ssh = paramiko.SSHClient()
@@ -62,21 +62,6 @@ def update(remoteFile):
 		pass
 
 
-def transferFile(inputFile, remotepath, server, username):
-	try:
-		#remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-		#response = sftp.put(inputFile, remoteFile)
-		startThread(inputFile, remotepath, server, username)
-	except:
-		e = sys.exc_info()[0]
-		print e
-	#print(response)
-	#return remoteFile
-
-
-
-
-
 def triggerRemoteOTFsearch(remoteFile):
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
@@ -97,7 +82,7 @@ def triggerRemoteOTFsearch(remoteFile):
 	statusTxt.set( "Sending reconstruction command to remote server..." )
 	channel.send(" ".join([str(s) for s in command]) + '\n')
 
-	def tick():
+	def updateStatusBar():
 		if channel.recv_ready():
 			response = channel.recv(2048)
 		else:
@@ -117,7 +102,7 @@ def triggerRemoteOTFsearch(remoteFile):
 				textArea.insert(Tk.END, "\n")
 				textArea.yview(Tk.END)
 			statusBar.after(1000, tick)
-	tick()
+	updateStatusBar()
 
 
 def activateWaves(waves):

@@ -2,27 +2,7 @@ import sys
 import argparse
 import config
 import math
-from __init__ import makeBestReconstruction
-
-
-def goodChannel(string):
-	goodChannels=config.valid['waves']
-	value = int(string)
-	if value not in goodChannels:
-	    msg = "%r is not one of the acceptable channel names: %s" % (string, ', '.join(str(x) for x in goodChannels))
-	    raise argparse.ArgumentTypeError(msg)
-	return value
-
-def perfect_square(string):
-	value = int(string)
-	sqrt = math.sqrt(value)
-	if sqrt != int(sqrt):
-	    msg = "%r is not a perfect square" % string
-	    raise argparse.ArgumentTypeError(msg)
-	if value > 1024 or value < 32:
-	    msg = "Cropsize must be between 32 and 1024"
-	    raise argparse.ArgumentTypeError(msg)
-	return value
+from __init__ import makeBestReconstruction, goodChannel, cropCheck
 
 
 parser = argparse.ArgumentParser(description='OTF matching program', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -33,7 +13,7 @@ parser.add_argument('-n','--num', help='max number of OTF files used', default=c
 parser.add_argument('-l','--oilmin', help='min oil refractive index to search', default=config.oilMin, type=int, choices=config.valid['oilMin'], metavar='1510-1530')
 parser.add_argument('-m','--oilmax', help='max oil refractive index to search', default=config.oilMax, type=int, choices=config.valid['oilMax'], metavar='1510-1530')
 #parser.add_argument('-t','--time', help='number of timepoints to use', default=config.maxNum)
-parser.add_argument('-p','--crop', help='ROI crop size to use for testing', default=config.cropsize, type=perfect_square)
+parser.add_argument('-p','--crop', help='ROI crop size to use for testing', default=config.cropsize, type=cropCheck)
 parser.add_argument('-c','--channels', help='channels to process (sep by spaces)', default=None, nargs="*", type=goodChannel, metavar='CHAN')
 #parser.add_argument('-f','--forceotf', help='force wavelength to use specified OTF wavelength. provided as space-seperated list of comma-seperated pairs: e.g. 528,528', nargs="*")
 parser.add_argument('--otfdir', help='OTF directory', default=config.OTFdir, metavar='')
