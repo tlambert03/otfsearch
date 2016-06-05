@@ -30,3 +30,9 @@ defaultOTFdir = '/mnt/data0/SIMrecon/OTFs/defaultOTFs'
 writeFile=False
 
 
+valid ={
+	'waves': [435,477,528,541,608,683],
+	'cropsize': [36,64,128,256,512,1024],
+	'oilMin': range(1510,1530),
+	'oilMax': range(1510,1530),
+}

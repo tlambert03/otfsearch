@@ -43,12 +43,13 @@ def decodeOTFcode(code,template=config.OTFtemplate,delim=config.OTFdelim):
 
 def splitChannels(fname, waves=None):
 	reader = Mrc.open(fname) 
-	channels = [i for i in reader.hdr.wave if i != 0]
-	if waves is None: waves = channels
+	imWaves = [i for i in reader.hdr.wave if i != 0]
+	if waves is None: waves = imWaves
 	namesplit = os.path.splitext(fname)
 	files = []
 	for w in waves:
-		if w in channels:
+		if w in imWaves:
+			print "Extracting channel %d..." % w
 			out=namesplit[0]+"-"+str(w)+namesplit[1]
 			subprocess.call(['CopyRegion', fname, out, "-w="+str(w)])
 			files.append(out)
