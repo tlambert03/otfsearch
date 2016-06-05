@@ -224,7 +224,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 			the_file.write("INPUT FILE: %s" % inFile)
 			for D in reconLogs:
 				the_file.write("#"*80+'\n')
-				the_file.write("WAVELENGTH: %d" % D['log'])
+				the_file.write("WAVELENGTH: %d" % D['wave'])
 				the_file.write("OTF: %d" % D['otf'])
 				indat = Mrc.bindFile(D['procFile'])
 				imRIH = getRIH(indat)
