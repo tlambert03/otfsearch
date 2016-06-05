@@ -43,6 +43,8 @@ args = vars(parser.parse_args())
 otfDict = {}
 for item in args['otf']:
 	otfDict.update(item[0])
+for k,v, in otfDict.items():
+	otfDict[k]=os.path.join(config.OTFdir,v)
 
 fname = args['inputFile'].name
 header = Mrc.open(fname).hdr

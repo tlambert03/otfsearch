@@ -171,7 +171,8 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, configDir=None):
 	return output
 
 
-def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDir=None):
+def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, 
+							configDir=None, writeLog=True, logFile=None):
 	"""Splits multi-channel file into individual channels
 	then reconstructs each channel and merges the results
 	provide OTFdict as { '528' : '/path/to/528/otf', '608' : 'path/to/608/otf'}
@@ -193,10 +194,11 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDi
 		splitfiles = [inFile]
 
 	filesToMerge = []
+	reconLogs=[]
 	for file in splitfiles:
 		wave = Mrc.open(file).hdr.wave[0]
 		print "Reconstructing channel %d ..." % wave
-		
+
 		if OTFdict.has_key(str(wave)):
 			otf = OTFdict[str(wave)]
 		elif os.path.exists(os.path.join(config.defaultOTFdir,str(wave)+".otf")):
@@ -207,17 +209,31 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, configDi
 
 		namesplit = os.path.splitext(file)
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
-		reconLog = reconstruct(file, otf, procFile, configDir=configDir)
+		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, configDir=configDir), 
+							'wave' : wave,
+							'file' : file,
+							'otf'  : otf,
+							'procFile' : procFile
+						})
 		filesToMerge.append(procFile)
 
-	if numWaves > 1:
+	if len(filesToMerge) > 1:
 		print "Merging multi-channel reconstructions..."
 		mergeChannels(filesToMerge, outFile)
 		#cleanup files
 		for f in splitfiles: os.remove(f)
 		for f in filesToMerge: os.remove(f)
 	else:
-		outFile=procFile
+		outFile=filesToMerge[0]
+
+	if writeLog:
+		if not logFile: 
+			namesplit=os.path.splitext(outFile)
+			logFile=namesplit[0]+"_LOG.txt"
+		with open(logFile, 'w') as the_file:
+			for L in reconLogs:
+				the_file.write(L['log'])
+
 
 	return outFile
 
