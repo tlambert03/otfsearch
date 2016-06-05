@@ -491,7 +491,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
 	if verbose: print "reconstructing final file..."
-	reconstructed = reconstructMulti(fname, bestOTFs)
+	reconstructed = reconstructMulti(fname, bestOTFs, reconWaves=reconWaves)
 
 	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 	if doReg and numWaves>1: # perform channel registration

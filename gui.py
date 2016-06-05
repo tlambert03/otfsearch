@@ -92,8 +92,7 @@ def triggerRemoteOTFsearch(remoteFile):
 		command.extend(['-a', maxOTFage.get()])
 
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	if len(selectedChannels)>1:
-		command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
+	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
 
 	statusTxt.set( "Sending reconstruction command to remote server..." )
 	channel.send(" ".join([str(s) for s in command]) + '\n')
@@ -161,6 +160,11 @@ def entriesValid():
 	if not RefChannel.get().isdigit() or not int(RefChannel.get()) in waves:
 		tkMessageBox.showinfo("Input Error", "Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
 		return 0
+	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
+	if len(selectedChannels)==0:
+		tkMessageBox.showinfo("Input Error", "You must select at least one channel to reconstruct:")
+		return 0
+
 	#OTFdir.get()
 	#RegFile.get()
 	#doMax.get()
@@ -182,7 +186,7 @@ def getRegFile():
 def quit():
 	#textArea.insert(Tk.END, 'response')
 	outqueue=['finished']
-	sys.exit()
+	root.destroy()
 
 def doit():
 	inputFile = rawFilePath.get()
