@@ -26,10 +26,11 @@ parser.add_argument('--version', action='version', version='%(prog)s 0.1')
 
 args = vars(parser.parse_args())
 
-#bestOTFs = makeBestReconstruction(args['inputFile'].name, cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], 
-#	maxAge=args['age'], maxNum=args['num'], OTFdir=args['otfdir'], reconWaves=args['channels'], regFile=args['regfile'], 
-#	refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeFile=args['writefile'], cleanup=True, verbose=True,)
+bestOTFs = makeBestReconstruction(args['inputFile'].name, cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], 
+	maxAge=args['age'], maxNum=args['num'], OTFdir=args['otfdir'], reconWaves=args['channels'], regFile=args['regfile'], 
+	refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeFile=args['writefile'], cleanup=True, verbose=True,)
 
-print ""
-print "Best OTFs:"
-#print bestOTFs
+if bestOTFs:
+	print ""
+	print "Best OTFs:"
+	print bestOTFs
