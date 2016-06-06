@@ -119,9 +119,10 @@ def sendRemoteCommand(command):
 			textArea.yview(Tk.END)
 			if 'Best OTFs:' in r:
 				otfDict=r[r.index('Best OTFs:')+1]
-				for k,v in otfDict:
-					channelOTFPaths[int(k)].set(v)
-					statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
+				if isinstance(otfDict,dict):
+					for k,v in otfDict.items():
+						channelOTFPaths[int(k)].set(v)
+						statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
 		if response.endswith(':~$ '):
 			if 'OTFs' not in statusTxt.get():
 				statusTxt.set("Done")
