@@ -12,6 +12,7 @@ import Mrc
 import threading
 from functools import partial
 import tkFont
+from ast import literal_eval
 
 try:
 	import paramiko
@@ -119,10 +120,15 @@ def sendRemoteCommand(command):
 			textArea.yview(Tk.END)
 			if 'Best OTFs:' in r:
 				otfDict=r[r.index('Best OTFs:')+1]
+				print otfDict
+				if not isinstance(otfDict,dict):
+					otfDict = literal_eval(otfDict)
 				if isinstance(otfDict,dict):
 					for k,v in otfDict.items():
+						print k
+						print v
 						channelOTFPaths[int(k)].set(v)
-						statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
+						statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
 		if response.endswith(':~$ '):
 			if 'OTFs' not in statusTxt.get():
 				statusTxt.set("Done")

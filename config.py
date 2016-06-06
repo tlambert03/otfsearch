@@ -28,7 +28,7 @@ OTFextension = '.otf'
 OTFdir = '/mnt/data0/SIMrecon/OTFs'
 defaultOTFdir = '/mnt/data0/SIMrecon/OTFs/defaultOTFs'
 
-writeFile=False
+writeFile=True
 
 
 valid ={

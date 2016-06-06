@@ -385,6 +385,9 @@ def CIP(im):
 
 
 def printFormattedScores(scoreList):
+	'''
+	prints a nicely formatted version of the output from scoreOTFs
+	'''
 	print "{:<8} {:<10} {:^23} {:<8} {:<8} {:<7}".format("Channel", "Bleaching", "OTF", "OTFoil", "Modamp", "RIH")
 	for i in scoreList: print "{:<8} {:<10} {:<23} {:<8} {:<05.3}    {:<04.3}".format(i['wavelength'], i['channelDecay'], i['OTFcode'], i['OTFoil'], np.average(i['modamp2']), i['RIH'])
 
