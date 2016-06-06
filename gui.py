@@ -13,6 +13,7 @@ import threading
 from functools import partial
 import tkFont
 from ast import literal_eval
+import socket
 
 try:
 	import paramiko
@@ -23,17 +24,48 @@ except ImportError as e:
 
 outqueue = [0]
 
-def transferFile(inputFile, remotepath, server, username, mode):
-	global outqueue
-	statusTxt.set( "connecting to " + C.server + "..." )
+def connectToServer(host=None, user=None):
+	if not host: host=server.get()
+	if not user: user = username.get()
+	statusTxt.set( "connecting to " + host + "..." )
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
-	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-	ssh.connect(server, username=username)
-	thr = threading.Thread(target=sftpPut, args=(inputFile, remotepath, ssh))
-	thr.start()
-	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	root.after(400, updateTransferStatus, (remoteFile,mode))
+	# is this necessary? 
+	#hostkey = os.path.expanduser(os.path.join("~", ".ssh", "known_hosts"))
+	#try:
+	#	ssh.load_host_keys(hostkey)
+	#except IOError as e:
+	#	statusTxt.set(e)
+	#	return 0
+	try:
+		ssh.connect(host, username=user)
+		statusTxt.set( "connected to " + host )
+	except socket.gaierror as e:
+		# bad server name?
+		statusTxt.set( "bad servername?: " + host)
+		return 0
+	except paramiko.PasswordRequiredException as e:
+		# bad username?
+		statusTxt.set( "bad username?: " + user)
+		return 0
+	except paramiko.AuthenticationException as e:
+		# bad password/hostkey?
+		statusTxt.set( "Authentication error: no password/hostkey?")
+		return 0
+	except Exception as e:
+		print e
+		statusTxt.set(e)
+		return 0
+	return ssh
+
+def transferFile(inputFile, remotepath, mode):
+	global outqueue
+	ssh = connectToServer()
+	if ssh:
+		thr = threading.Thread(target=sftpPut, args=(inputFile, remotepath, ssh))
+		thr.start()
+		remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
+		root.after(400, updateTransferStatus, (remoteFile,mode))
 
 def SFTPprogress(transferred, outOf):
 	global outqueue
@@ -104,53 +136,51 @@ def downloadFile(remoteFile, ssh):
 
 
 def sendRemoteCommand(command):
-	ssh = paramiko.SSHClient()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
-	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-	ssh.connect(C.server, username=C.username)
-	channel = ssh.invoke_shell()
+	ssh = connectToServer()
+	if ssh:
+		channel = ssh.invoke_shell()
 
-	statusTxt.set( "Sending command to remote server..." )
-	channel.send(" ".join([str(s) for s in command]) + '\n')
+		statusTxt.set( "Sending command to remote server..." )
+		channel.send(" ".join([str(s) for s in command]) + '\n')
 
-	def updateStatusBar():
-		if channel.recv_ready():
-			response = channel.recv(2048)
-		else:
-			response=''
+		def updateStatusBar():
+			if channel.recv_ready():
+				response = channel.recv(2048)
+			else:
+				response=''
 
-		if response!='':
-			statusTxt.set("Receiving feedback from server ... see text area above for details.")
-			r=[r for r in response.splitlines() if r and r!='']
-			textArea.insert(Tk.END, "\n".join(r))
-			textArea.insert(Tk.END, "\n")
-			textArea.yview(Tk.END)
-			if 'Best OTFs:' in r:
-				otfDict=r[r.index('Best OTFs:')+1]
-				if not isinstance(otfDict,dict):
-					otfDict = literal_eval(otfDict)
-				if isinstance(otfDict,dict):
-					for k,v in otfDict.items():
-						channelOTFPaths[int(k)].set(v)
-						statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
-			if 'Files Ready:' in r:
-				i=r.index('Files Ready:')+1
-				statusTxt.set("Downloading files from server... ")
-				while not r[i].startswith('Done'):
-					remoteFile = r[i].split(": ")[1]
-					statusTxt.set( "Downloading: %s" % remoteFile )
-					downloadFile(remoteFile, ssh)
-					i+=1
-		if response.endswith(':~$ '):
-			if 'OTFs' not in statusTxt.get():
-				statusTxt.set("Done")
-			ssh.close()
-		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
-			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
-			ssh.close()
-		else:
-			statusBar.after(1000, updateStatusBar)
-	updateStatusBar()
+			if response!='':
+				statusTxt.set("Receiving feedback from server ... see text area above for details.")
+				r=[r for r in response.splitlines() if r and r!='']
+				textArea.insert(Tk.END, "\n".join(r))
+				textArea.insert(Tk.END, "\n")
+				textArea.yview(Tk.END)
+				if 'Best OTFs:' in r:
+					otfDict=r[r.index('Best OTFs:')+1]
+					if not isinstance(otfDict,dict):
+						otfDict = literal_eval(otfDict)
+					if isinstance(otfDict,dict):
+						for k,v in otfDict.items():
+							channelOTFPaths[int(k)].set(v)
+							statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
+				if 'Files Ready:' in r:
+					i=r.index('Files Ready:')+1
+					statusTxt.set("Downloading files from server... ")
+					while not r[i].startswith('Done'):
+						remoteFile = r[i].split(": ")[1]
+						statusTxt.set( "Downloading: %s" % remoteFile )
+						downloadFile(remoteFile, ssh)
+						i+=1
+			if response.endswith(':~$ '):
+				if 'OTFs' not in statusTxt.get():
+					statusTxt.set("Done")
+				ssh.close()
+			elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
+				statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
+				ssh.close()
+			else:
+				statusBar.after(1000, updateStatusBar)
+		updateStatusBar()
 
 
 def activateWaves(waves):
@@ -240,10 +270,10 @@ def runReconstruct(mode):
 			return 0
 	if mode=='search':
 		if entriesValid():
-			transferFile(inputFile, C.remotepath, C.server, C.username, 'search')
+			transferFile(inputFile, C.remotepath, 'search')
 	elif mode=='single':
 		if entriesValid():
-			transferFile(inputFile, C.remotepath, C.server, C.username, 'single')
+			transferFile(inputFile, C.remotepath, 'single')
 	else:
 		return 0
 
@@ -407,6 +437,27 @@ RegFile = Tk.StringVar()
 RegFileEntry = Tk.Entry(configFrame, textvariable=RegFile, width=48).grid(row=2, column=1, columnspan=6, sticky='W')
 chooseRegFileButton = Tk.Button(configFrame, text ="Choose File", command = getRegFile).grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
 RegFile.set( C.regFile )
+
+Tk.Label(configFrame, text='Server Address:').grid(row=3, sticky='e')
+server = Tk.StringVar()
+serverEntry = Tk.Entry(configFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
+server.set( C.server )
+
+Tk.Label(configFrame, text='Username:').grid(row=4, sticky='e')
+username = Tk.StringVar()
+usernameEntry = Tk.Entry(configFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
+username.set( C.username )
+
+def testConnection():
+	if connectToServer():
+		tkMessageBox.showinfo('Yay!','%s\nConnection successfull!' % server.get())
+	else:
+		tkMessageBox.showinfo('Aw snap.','%s\nConnection failed!' % server.get())
+
+
+Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
+
+
 
 # Help Frame
 
