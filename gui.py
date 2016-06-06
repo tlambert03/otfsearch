@@ -137,7 +137,9 @@ def sendRemoteCommand(command):
 				i=r.index('Files Ready:')+1
 				statusTxt.set("Downloading files from server... ")
 				while not r[i].startswith('Done'):
-					downloadFile(r[i].split(": ")[1], ssh)
+					remoteFile = r[i].split(": ")[1]
+					statusTxt.set( "Downloading: %s" % remoteFile )
+					downloadFile(remoteFile, ssh)
 					i+=1
 		if response.endswith(':~$ '):
 			if 'OTFs' not in statusTxt.get():
