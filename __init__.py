@@ -52,9 +52,8 @@ def goodChannel(string):
 def cropCheck(string):
 	import argparse
 	value = int(string)
-	sqrt = math.sqrt(value)
-	if sqrt != int(sqrt):
-	    msg = "%r is not a perfect square" % string
+	if not (value != 0 and ((value & (value - 1)) == 0)):
+	    msg = "%r is not a power of two" % string
 	    raise argparse.ArgumentTypeError(msg)
 	if value > 1024 or value < 32:
 	    msg = "Cropsize must be between 32 and 1024"
