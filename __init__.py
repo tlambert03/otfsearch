@@ -575,12 +575,14 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		if verbose: print "perfoming channel registration in matlab..."
 		registeredFile, maxProj = matlabReg(reconstructed,regFile,refChannel,doMax) # will be a list
 
+	scoreFile=None
 	if writeFile: # write the file to csv
 		import pandas as pd
 		scoreDF = pd.DataFrame(allScores)
-		scoreDF.to_csv(os.path.splitext(fname)[0]+"_scores.csv")
+		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
+		scoreDF.to_csv(scoreFile)
 
-	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj)
+	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
 
 
 

@@ -96,7 +96,11 @@ def makeOTFsearchCommand(remoteFile):
 	return command
 
 def downloadFile(remoteFile, ssh):
-	print remoteFile
+	sftp = ssh.open_sftp()
+	# this assumes the user hasn't changed it since clicking "reconstruct"
+	print "Downloading: %s" % remoteFile
+	localDest = os.path.dirname(rawFilePath.get())
+	sftp.get(remoteFile, os.path.join(localDest,os.path.basename(remoteFile)))
 
 
 def sendRemoteCommand(command):
@@ -130,7 +134,7 @@ def sendRemoteCommand(command):
 						channelOTFPaths[int(k)].set(v)
 						statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
 			if 'Files Ready:' in r:
-				i=r[r.index('Files Ready:')+1]
+				i=r.index('Files Ready:')+1
 				statusTxt.set("Downloading files from server... ")
 				while not r[i].startswith('Done'):
 					downloadFile(r[i].split(": ")[1], ssh)
