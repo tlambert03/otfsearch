@@ -81,7 +81,7 @@ reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=
 
 if args['doreg'] and numWaves>1: # perform channel registration
 	#print "perfoming channel registration in matlab..."
-	registered = matlabReg(reconstructed,args['regfile'],args['refchanel'],args['domax']) # will be a list
+	registered = matlabReg(reconstructed,args['regfile'],args['refchannel'],args['domax']) # will be a list
 
 
 # cleanup the file that was made
