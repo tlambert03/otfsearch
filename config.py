@@ -11,15 +11,15 @@ remotescript = '/mnt/data0/SIMrecon/otfsearch/'
 
 cropsize=256
 maxAge = None
-maxNum = 10
+maxNum = None
 oilMin = 1510
 oilMax = 1522
 
-doReg = True
+doReg = False
 MatlabRegScript = 'OMXreg2'
 refChannel = 528
 regFile = '/mnt/data0/MATLAB/talley/OMXwarp/OMXreg_160323_speck.mat'
-doMax = True
+doMax = False
 
 OTFtemplate = 'wavelength_date_oil_medium_angle_beadnum'
 OTFdelim = '_'

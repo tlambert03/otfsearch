@@ -10,7 +10,8 @@ from ttk import Notebook, Style
 import time
 import Mrc
 import threading
-
+from functools import partial
+import tkFont
 
 try:
 	import paramiko
@@ -31,7 +32,7 @@ def transferFile(inputFile, remotepath, server, username):
 	thr = threading.Thread(target=sftpPut, args=(inputFile, remotepath, ssh))
 	thr.start()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	root.after(400, update, remoteFile)
+	root.after(400, updateTransferStatus, remoteFile)
 
 def SFTPprogress(transferred, outOf):
 	global outqueue
@@ -39,21 +40,21 @@ def SFTPprogress(transferred, outOf):
 
 def sftpPut(inputFile, remotepath, ssh):
 	global outqueue
-	statusTxt.set( "Connection successful, copying to server... Program may freeze")
+	statusTxt.set( "Connection successful, copying to server...")
 	sftp = ssh.open_sftp()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
 	sftp.put(inputFile, remoteFile, callback=SFTPprogress)
 	ssh.close()
 	outqueue=['finished']
 
-def update(remoteFile):
+def updateTransferStatus(remoteFile):
 	global outqueue
 	msg = outqueue
 	if len(msg)==2:
 		statusTxt.set("Transfered %0.1f of %0.1f MB" % (float(msg[0])/1000000,float(msg[1])/1000000))
-		root.after(400, update, remoteFile)
+		root.after(400, updateTransferStatus, remoteFile)
 	elif msg[0] is not 'finished':
-		root.after(400, update, remoteFile)
+		root.after(400, updateTransferStatus, remoteFile)
 	else:
 		statusTxt.set("Transfer finished. Starting remote reconstructions...")
 		triggerRemoteOTFsearch(remoteFile)
@@ -69,12 +70,13 @@ def triggerRemoteOTFsearch(remoteFile):
 	ssh.connect(C.server, username=C.username)
 	channel = ssh.invoke_shell()
 
-	command = ['python', C.remotescript, remoteFile, '-n', maxOTFnum.get(), 
-				'-l', OilMin.get(), '-m', OilMax.get(), '-p', cropsize.get(), 
-				'--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
+	command = ['python', C.remotescript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
+				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
 				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
 	if maxOTFage.get()!='None' and maxOTFage.get() != '':  
 		command.extend(['-a', maxOTFage.get()])
+	if maxOTFnum.get()!='None' and maxOTFnum.get() != '':  
+		command.extend(['-n', maxOTFnum.get()])
 
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
 	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
@@ -89,6 +91,11 @@ def triggerRemoteOTFsearch(remoteFile):
 			response=''
 
 		if response.endswith(':~$ '):
+			if response!='':
+				r=[r for r in response.splitlines() if r and r!='']
+				textArea.insert(Tk.END, "\n".join(r))
+				textArea.insert(Tk.END, "\n")
+				textArea.yview(Tk.END)
 			statusTxt.set("done")
 			ssh.close()
 		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
@@ -101,7 +108,7 @@ def triggerRemoteOTFsearch(remoteFile):
 				textArea.insert(Tk.END, "\n".join(r))
 				textArea.insert(Tk.END, "\n")
 				textArea.yview(Tk.END)
-			statusBar.after(1000, tick)
+			statusBar.after(1000, updateStatusBar)
 	updateStatusBar()
 
 
@@ -116,12 +123,17 @@ def deactivateWaves(waves):
 		channelSelectBoxes[w].config(state='disabled')
 
 def getRawFile():
-	filename = tkFileDialog.askopenfilename()
-	rawFilePath.set( filename )
-	header = Mrc.open(filename).hdr
-	waves = [i for i in header.wave if i != 0]
-	deactivateWaves(allwaves)
-	activateWaves(waves)
+	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
+	if filename:
+		rawFilePath.set( filename )
+		try:
+			header = Mrc.open(filename).hdr
+			waves = [i for i in header.wave if i != 0]
+			deactivateWaves(allwaves)
+			activateWaves(waves)
+			statusTxt.set('Valid .dv file')
+		except ValueError:
+			statusTxt.set('Unable to read file... is it a .dv file?')
 
 def entriesValid():
 	if maxOTFnum.get():
@@ -158,14 +170,17 @@ def entriesValid():
 
 
 def getOTFdir():
-	filename = tkFileDialog.askopenfilename()
-	OTFdir.set( filename )
+	filename = tkFileDialog.askdirectory()
+	if filename:
+		OTFdir.set( filename )
 def getSIRconfigDir():
-	filename = tkFileDialog.askopenfilename()
-	SIRconfigDir.set( filename )
+	filename = tkFileDialog.askdirectory()
+	if filename:
+		SIRconfigDir.set( filename )
 def getRegFile():
-	filename = tkFileDialog.askopenfilename()
-	RegFile.set( filename )
+	filename = tkFileDialog.askopenfilename(filetypes=[('MATLAB files', '.mat')])
+	if filename:
+		RegFile.set( filename )
 
 
 def quit():
@@ -173,7 +188,23 @@ def quit():
 	outqueue=['finished']
 	root.destroy()
 
-def doit():
+def runOTFsearch():
+	inputFile = rawFilePath.get()
+	if not os.path.exists(inputFile):
+		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
+		return 0
+	if not isRawSIMfile(inputFile):
+		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
+		if response == "no":
+			return 0
+
+	if entriesValid():
+		#	tkMessageBox.showinfo("Copying", "Copying...")
+		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
+	else:
+		return 0
+
+def runSingleReconstruct():
 	inputFile = rawFilePath.get()
 	if not os.path.exists(inputFile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
@@ -193,37 +224,49 @@ def doit():
 
 root = Tk.Tk()
 root.title('SIM Reconstruction Tool')
-#root.geometry("720x600+550+150")
+root.resizable(0,0)
+#center the window on screen with specified dimensions
+size = (684,607)
+w = root.winfo_screenwidth()
+h = root.winfo_screenheight()
+x = w/2 - size[0]/2
+y = h/2 - size[1]/2
+root.geometry("%dx%d+%d+%d" % (size + (x, y)))
 
-# create all of the main containers
+
+top_frame = Tk.Frame(root)
+
 Nb = Notebook(root)
 Style().theme_use('clam')
 
-center = Tk.Frame(Nb)
-btm_frame = Tk.Frame(root, bg='gray', bd=2)
+otfsearchFrame = Tk.Frame(Nb)
+singleReconFrame = Tk.Frame(Nb)
+configFrame = Tk.Frame(Nb)
+helpFrame = Tk.Frame(Nb)
+
+Nb.add(otfsearchFrame, text='Optimized Reconstruction')
+Nb.add(singleReconFrame, text='Specify OTFs')
+Nb.add(configFrame, text='Configuration')
+Nb.add(helpFrame, text='Help')
+
+textAreaFrame = Tk.Frame(root, bg='gray', bd=2)
 statusFrame = Tk.Frame(root)
 
-Nb.add(center, text='OTF search')
+
+top_frame.grid(row = 0, pady=10)
+Nb.grid(row=1, padx=15, pady=5)
+textAreaFrame.grid(row = 2, sticky="nsew", padx=15, pady=10)
+statusFrame.grid(row = 3, sticky="ew")
 
 
-# layout all of the main containers
-root.grid_rowconfigure(1, weight=1)
-root.grid_columnconfigure(0, weight=1)
+# Top Area widgets
 
-#top_frame.grid(row=0, sticky="ew")
-Nb.grid(row=0, sticky="ew", padx=20, pady=10)
-btm_frame.grid(row = 1, sticky="ew")
-statusFrame.grid(row = 2, sticky="ew")
+Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
+rawFilePath = Tk.StringVar()
+rawFileEntry = Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
+chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
-channel_data = str()
-
-# center widgets
-
-leftLabels = ['Input File', 'Selected Channels:', 'Max OTF age(day):', 'Max number OTFs:', 'Crop Size (px):', 
-			'Oil Min RI:', 'Oil Max RI:', 'OTF Directory:', 'SIRconfig Dir:', 'Register Channels:', 
-			'Registration File:','Reference Channel:','Do Max Projection:']
-for i in range(len(leftLabels)):
-	Tk.Label(center, text=leftLabels[i]).grid(row=i, sticky='E')
+Tk.Label(top_frame, text='Channels:').grid(row=1, sticky='e')
 
 allwaves=C.valid['waves']
 channelSelectBoxes={}
@@ -231,74 +274,164 @@ channelSelectVars={}
 for i in range(len(allwaves)):
 	channelSelectVars[allwaves[i]]=Tk.IntVar()
 	channelSelectVars[allwaves[i]].set(0)
-	channelSelectBoxes[allwaves[i]]=Tk.Checkbutton(center)
+	channelSelectBoxes[allwaves[i]]=Tk.Checkbutton(top_frame)
 	channelSelectBoxes[allwaves[i]].config(variable=channelSelectVars[allwaves[i]], text=str(allwaves[i]), state='disabled')
 	channelSelectBoxes[allwaves[i]].grid(row=1, column=i+1, sticky='W')
 
-rawFilePath = Tk.StringVar()
-rawFileEntry = Tk.Entry(center, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
-chooseFileButton = Tk.Button(center, text ="Choose File", command = getRawFile).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
-
-maxOTFage = Tk.StringVar()
-maxOTFage.set(C.maxAge if C.maxAge is not None else '')
-maxOTFageEntry = Tk.Entry(center, textvariable=maxOTFage, width=6).grid(row=2, column=1, sticky='W')
-Tk.Label(center, text="(leave blank for no limit)").grid(row=2, column=2, columnspan=4, sticky='W')
-
-maxOTFnum = Tk.StringVar()
-maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
-maxOTFnumEntry = Tk.Entry(center, textvariable=maxOTFnum, width=6).grid(row=3, column=1, sticky='W')
-Tk.Label(center, text="(leave blank for no limit)").grid(row=3, column=2, columnspan=4, sticky='W')
-
-cropsize = Tk.StringVar()
-cropsize.set(C.cropsize)
-cropsizeEntry = Tk.Entry(center, textvariable=cropsize, width=6).grid(row=4, column=1, sticky='W')
-Tk.Label(center, text="(make it a power of 2)").grid(row=4, column=2, columnspan=4, sticky='W')
-
-OilMin = Tk.StringVar()
-OilMin.set(C.oilMin)
-OilMinEntry = Tk.Entry(center, textvariable=OilMin, width=6).grid(row=5, column=1, sticky='W')
-
-OilMax = Tk.StringVar()
-OilMax.set(C.oilMax)
-OilMaxEntry = Tk.Entry(center, textvariable=OilMax, width=6).grid(row=6, column=1, sticky='W')
-
-OTFdir = Tk.StringVar()
-OTFdirEntry = Tk.Entry(center, textvariable=OTFdir, width=48).grid(row=7, column=1, columnspan=6, sticky='W')
-chooseOTFdirButton = Tk.Button(center, text ="Choose File", command = getOTFdir).grid(row=7, column=7, ipady=3, ipadx=10, padx=2)
-OTFdir.set( C.OTFdir )
-
-SIRconfigDir = Tk.StringVar()
-SIRconfigDirEntry = Tk.Entry(center, textvariable=SIRconfigDir, width=48).grid(row=8, column=1, columnspan=6, sticky='W')
-chooseSIRconfigdirButton = Tk.Button(center, text ="Choose File", command = getSIRconfigDir).grid(row=8, column=7, ipady=3, ipadx=10, padx=2)
-SIRconfigDir.set( C.SIconfigDir )
-
 doReg = Tk.IntVar()
 doReg.set(C.doReg)
-doRegButton = Tk.Checkbutton(center, variable=doReg).grid(row=9, column=1, sticky='W')
-
-RegFile = Tk.StringVar()
-RegFileEntry = Tk.Entry(center, textvariable=RegFile, width=48).grid(row=10, column=1, columnspan=6, sticky='W')
-chooseRegFileButton = Tk.Button(center, text ="Choose File", command = getRegFile).grid(row=10, column=7, ipady=3, ipadx=10, padx=2)
-RegFile.set( C.regFile )
-
-RefChannel = Tk.StringVar()
-RefChannel.set(C.refChannel)
-RefChannelEntry = Tk.Entry(center, textvariable=RefChannel, width=6).grid(row=11, column=1, sticky='W')
-Tk.Label(center, text="(435,477,528,541,608, or 683)").grid(row=11, column=2, columnspan=4, sticky='W')
+doRegButton = Tk.Checkbutton(top_frame, variable=doReg, text='Do registration').grid(row=2, column=1, columnspan=3, sticky='W')
 
 doMax = Tk.IntVar()
 doMax.set(C.doMax)
-doMaxButton = Tk.Checkbutton(center, variable=doMax).grid(row=12, column=1, sticky='W')
+doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(row=2, column=4, columnspan=3, sticky='W')
 
-Tk.Button(center, text ="Reconstruct", command = doit, width=12).grid(row=13, column=1, columnspan=2,ipady=8, ipadx=8, pady=8, padx=8)
-Tk.Button(center, text ="Quit", command = quit, width=12).grid(row=13, column=4, columnspan=2,ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Label(top_frame, text='Ref Channel:').grid(row=3, sticky='e')
+RefChannel = Tk.StringVar()
+RefChannel.set(C.refChannel)
+RefChannelEntry = Tk.Entry(top_frame, textvariable=RefChannel).grid(row=3, column=1, columnspan=3, sticky='W')
+Tk.Label(top_frame, text="(435,477,528,541,608, or 683)").grid(row=3, column=4, columnspan=3,  sticky='W')
 
-textArea = ScrolledText(btm_frame)
+
+# OTF search tab widgets
+
+leftLabels = ['Max OTF age(day):', 'Max number OTFs:', 'Crop Size (px):', 'Oil Min RI:', 
+			'Oil Max RI:']
+for i in range(len(leftLabels)):
+	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i, sticky='E')
+
+maxOTFage = Tk.StringVar()
+maxOTFage.set(C.maxAge if C.maxAge is not None else '')
+maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=0, column=1, sticky='W')
+Tk.Label(otfsearchFrame, text="(leave blank for no limit)").grid(row=0, column=2,  sticky='W')
+
+maxOTFnum = Tk.StringVar()
+maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
+maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=1, column=1, sticky='W')
+Tk.Label(otfsearchFrame, text="(leave blank for no limit)").grid(row=1, column=2,  sticky='W')
+
+cropsize = Tk.StringVar()
+cropsize.set(C.cropsize)
+cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=2, column=1, sticky='W')
+Tk.Label(otfsearchFrame, text="(make it a power of 2)").grid(row=2, column=2,  sticky='W')
+
+OilMin = Tk.StringVar()
+OilMin.set(C.oilMin)
+OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=3, column=1, sticky='W')
+
+OilMax = Tk.StringVar()
+OilMax.set(C.oilMax)
+OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, sticky='W')
+
+Tk.Button(otfsearchFrame, text ="Run OTF Search", command = runOTFsearch, width=12).grid(row=8, column=1, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(otfsearchFrame, text ="Quit", command = quit, width=12).grid(row=8, column=2, ipady=8, ipadx=8, pady=8, padx=8)
+
+
+# SINGLE RECON TAB
+
+
+Tk.Label(singleReconFrame, text='Wiener constant:').grid(row=0, sticky='e')
+wiener = Tk.DoubleVar()
+wiener.set('')
+wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15).grid(row=0, column=1, sticky='W')
+
+Tk.Label(singleReconFrame, text='Timepoints:').grid(row=0, column=2, sticky='e')
+timepoints = Tk.DoubleVar()
+timepoints.set('')
+timepointsEntry = Tk.Entry(singleReconFrame, textvariable=timepoints, width=15).grid(row=0, column=3, sticky='W')
+
+
+for i in range(len(allwaves)):
+	Tk.Label(singleReconFrame, text=str(allwaves[i])+"nm OTF: ").grid(row=i+1, sticky='E')
+
+def getChannelOTF(var):
+	filename = tkFileDialog.askopenfilename(filetypes=[('OTF files', '.otf')])
+	if filename:
+		channelOTFPaths[var].set(filename)
+
+allwaves=C.valid['waves']
+channelOTFPaths={}
+channelOTFEntries={}
+channelOTFButtons={}
+
+
+for i in range(len(allwaves)):
+	channelOTFPaths[allwaves[i]] = Tk.StringVar()
+	channelOTFPaths[allwaves[i]].set(os.path.join(C.defaultOTFdir,str(allwaves[i])+'.otf'))
+	channelOTFEntries[allwaves[i]] = Tk.Entry(singleReconFrame, textvariable=channelOTFPaths[allwaves[i]], width=48)
+	channelOTFEntries[allwaves[i]].grid(row=i+1, columnspan=6, column=1, sticky='W')
+	channelOTFButtons[allwaves[i]] = Tk.Button(singleReconFrame, text ="Select OTF", command=partial(getChannelOTF, allwaves[i]))
+	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
+
+
+Tk.Button(singleReconFrame, text ="Reconstruct", command = runSingleReconstruct, width=12).grid(row=8, column=1, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(singleReconFrame, text ="Quit", command = quit, width=12).grid(row=8, column=3, ipady=8, ipadx=8, pady=8, padx=8)
+
+
+
+# CONFIG TAB
+
+Tk.Label(configFrame, text='OTF Directory:').grid(row=0, sticky='e')
+OTFdir = Tk.StringVar()
+OTFdirEntry = Tk.Entry(configFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+chooseOTFdirButton = Tk.Button(configFrame, text ="Choose Dir", command = getOTFdir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
+OTFdir.set( C.OTFdir )
+
+Tk.Label(configFrame, text='SIR config Dir:').grid(row=1, sticky='e')
+SIRconfigDir = Tk.StringVar()
+SIRconfigDirEntry = Tk.Entry(configFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
+chooseSIRconfigdirButton = Tk.Button(configFrame, text ="Choose Dir", command = getSIRconfigDir).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
+SIRconfigDir.set( C.SIconfigDir )
+
+Tk.Label(configFrame, text='Registration File:').grid(row=2, sticky='e')
+RegFile = Tk.StringVar()
+RegFileEntry = Tk.Entry(configFrame, textvariable=RegFile, width=48).grid(row=2, column=1, columnspan=6, sticky='W')
+chooseRegFileButton = Tk.Button(configFrame, text ="Choose File", command = getRegFile).grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
+RegFile.set( C.regFile )
+
+# Help Frame
+
+
+helpText = Tk.Text(helpFrame)
+helpText.pack(fill='both')
+
+helpText.tag_configure("heading", font=('Arial',14,'bold'))
+helpText.tag_configure("paragraph", font=('Arial',12,'normal'))
+helpText.tag_configure("code", font=('Courier',12,'bold'), background='#bbb')
+helpText.tag_configure("italics", font=('Arial',14,'italic'))
+
+helpText.insert('insert','Input File\n', 'heading')
+helpText.insert('insert','Select a raw SIM .dv file to process and choose the ', 'paragraph')
+helpText.insert('insert',' Channels ', 'code')
+helpText.insert('insert',' that you would like to include in the reconstructions. ', 'paragraph')
+helpText.insert('insert','When you open a new file, the channels will be automatically populated based on the available channels in the image. \n', 'paragraph')
+helpText.insert('insert','\n')
+helpText.insert('insert','Optimized Reconstruction \n', 'heading')
+helpText.insert('insert','Use this tab to search the folder of OTFs specified in the configuration tab for the optimal OTF for each channel. ', 'paragraph')
+helpText.insert('insert','Adjust the OTF search parameters in the optimized reconstruction tab and hit the ', 'paragraph')
+helpText.insert('insert',' Run OTF Search ', 'code')
+helpText.insert('insert',' button. \n', 'paragraph')
+helpText.insert('insert','\n')
+helpText.insert('insert','Specify OTFs\n', 'heading')
+helpText.insert('insert','This tab can be used to specifiy OTFs for each channel present in the file, then perform a single reconstruction. \n ', 'paragraph')
+helpText.insert('insert','\n')
+helpText.insert('insert','Configuration\n', 'heading')
+helpText.insert('insert','The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
+helpText.insert('insert','\n')
+helpText.insert('insert',"If you are getting bugs or unexpected results, don't hesistate to ask for help!", 'italics')
+
+
+helpText.config(height=15, state='disabled')
+
+# TEXT AREA
+textArea = ScrolledText(textAreaFrame)
 textArea.config(height=10)
-textArea.pack(side='bottom', fill='x')
+textArea.pack(side='bottom', fill='both')
 
+# STATUS BAR
 statusTxt = Tk.StringVar()
 statusBar = Tk.Label(statusFrame, textvariable=statusTxt, bd=1, relief='sunken', anchor='w', background='gray')
 statusBar.pack(side='bottom', fill='x')
 
+#START PROGRAM
 root.mainloop()

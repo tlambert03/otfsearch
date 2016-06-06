@@ -6,6 +6,7 @@ import Mrc
 import numpy as np
 from scipy import stats
 import config
+import math
 
 # OTF handling functions
 
@@ -173,7 +174,7 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, con
 	return output
 
 
-def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, 
+def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=None,
 							configDir=None, writeLog=True, logFile=None):
 	"""Splits multi-channel file into individual channels
 	then reconstructs each channel and merges the results
@@ -211,7 +212,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None,
 
 		namesplit = os.path.splitext(file)
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
-		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, configDir=configDir), 
+		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, configDir=configDir), 
 							'wave' : wave,
 							'otf'  : otf,
 							'file' : file,
