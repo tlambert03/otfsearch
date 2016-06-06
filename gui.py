@@ -251,15 +251,7 @@ def runReconstruct(mode):
 
 root = Tk.Tk()
 root.title('SIM Reconstruction Tool')
-root.resizable(0,0)
 #center the window on screen with specified dimensions
-size = (684,607)
-w = root.winfo_screenwidth()
-h = root.winfo_screenheight()
-x = w/2 - size[0]/2
-y = h/2 - size[1]/2
-root.geometry("%dx%d+%d+%d" % (size + (x, y)))
-
 
 top_frame = Tk.Frame(root)
 
@@ -459,6 +451,17 @@ textArea.pack(side='bottom', fill='both')
 statusTxt = Tk.StringVar()
 statusBar = Tk.Label(statusFrame, textvariable=statusTxt, bd=1, relief='sunken', anchor='w', background='gray')
 statusBar.pack(side='bottom', fill='x')
+
+
+# UPDATE WINDOW GEOMETRY AND CENTER ON SCREEN
+root.update_idletasks()
+w = root.winfo_screenwidth()
+h = root.winfo_screenheight()
+size = tuple(int(_) for _ in root.geometry().split('+')[0].split('x'))
+x = w/2 - size[0]/2
+y = h/2 - size[1]/1.3
+root.geometry("%dx%d+%d+%d" % (size + (x, y)))
+root.resizable(0,0)
 
 #START PROGRAM
 root.mainloop()
