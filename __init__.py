@@ -550,7 +550,7 @@ def matlabReg(fname,regFile,refChannel,doMax):
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
-	reconWaves=None, regFile=config.regFile, refChannel=config.refChannel, doMax=config.doMax, doReg=config.doReg, cleanup=True, verbose=True,):
+	reconWaves=None, regFile=config.regFile, refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True,):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):

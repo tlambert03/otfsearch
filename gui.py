@@ -119,10 +119,12 @@ def sendRemoteCommand(command):
 			textArea.yview(Tk.END)
 			if 'Best OTFs:' in r:
 				otfDict=r[r.index('Best OTFs:')+1]
-				print otfDict
-				
+				for k,v in otfDict:
+					channelOTFPaths[int(k)].set(v)
+					statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
 		if response.endswith(':~$ '):
-			statusTxt.set("Done")
+			if 'OTFs' not in statusTxt.get():
+				statusTxt.set("Done")
 			ssh.close()
 		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
