@@ -95,6 +95,10 @@ def makeOTFsearchCommand(remoteFile):
 	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
 	return command
 
+def downloadFile(remoteFile, ssh):
+	print remoteFile
+
+
 def sendRemoteCommand(command):
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
@@ -111,7 +115,6 @@ def sendRemoteCommand(command):
 		else:
 			response=''
 
-
 		if response!='':
 			statusTxt.set("Receiving feedback from server ... see text area above for details.")
 			r=[r for r in response.splitlines() if r and r!='']
@@ -126,6 +129,12 @@ def sendRemoteCommand(command):
 					for k,v in otfDict.items():
 						channelOTFPaths[int(k)].set(v)
 						statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
+			if 'Files Ready:' in r:
+				i=r[r.index('Files Ready:')+1]
+				statusTxt.set("Downloading files from server... ")
+				while not r[i].startswith('Done'):
+					downloadFile(r[i].split(": ")[1], ssh)
+					i+=1
 		if response.endswith(':~$ '):
 			if 'OTFs' not in statusTxt.get():
 				statusTxt.set("Done")
@@ -136,8 +145,6 @@ def sendRemoteCommand(command):
 		else:
 			statusBar.after(1000, updateStatusBar)
 	updateStatusBar()
-
-
 
 
 def activateWaves(waves):

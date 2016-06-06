@@ -81,9 +81,16 @@ reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=
 
 if args['doreg'] and numWaves>1: # perform channel registration
 	#print "perfoming channel registration in matlab..."
-	registered = matlabReg(reconstructed,args['regfile'],args['refchannel'],args['domax']) # will be a list
-
+	registeredFile, maxProj = matlabReg(reconstructed,args['regfile'],args['refchannel'],args['domax']) # will be a list
 
 # cleanup the file that was made
 if timecropped:
 	os.remove(inputFile)
+
+print ""
+print "Files Ready:"
+if reconstructed: print "Reconstruction: %s" % reconstructed
+if logFile: print "LogFile: %s" % logFile
+if registeredFile: print "Registered: %s" % registeredFile
+if maxProj: print "maxProj: %s" % maxProj
+print "Done"
