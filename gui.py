@@ -67,59 +67,6 @@ def updateTransferStatus(tup):
 		pass
 
 
-#def triggerRemoteOTFsearch(remoteFile):
-#	ssh = paramiko.SSHClient()
-#	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
-#	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-#	ssh.connect(C.server, username=C.username)
-#	channel = ssh.invoke_shell()
-#
-#	command = ['python', C.remoteOptScript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
-#				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
-#				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
-#	if maxOTFage.get()!='None' and maxOTFage.get() != '':  
-#		command.extend(['-a', maxOTFage.get()])
-#	if maxOTFnum.get()!='None' and maxOTFnum.get() != '':  
-#		command.extend(['-n', maxOTFnum.get()])
-#
-#	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-#	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
-#
-#	statusTxt.set( "Sending reconstruction command to remote server..." )
-#	channel.send(" ".join([str(s) for s in command]) + '\n')
-#
-#	def updateStatusBar():
-#		if channel.recv_ready():
-#			response = channel.recv(2048)
-#		else:
-#			response=''
-#
-#		if response.endswith(':~$ '):
-#			if response!='':
-#				r=[r for r in response.splitlines() if r and r!='']
-#				textArea.insert(Tk.END, "\n".join(r))
-#				textArea.insert(Tk.END, "\n")
-#				textArea.yview(Tk.END)
-#			statusTxt.set("done")
-#			ssh.close()
-#		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
-#			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
-#			ssh.close()
-#		else:
-#			statusTxt.set("scoring reconstructions...")
-#			if response!='':
-#				r=[r for r in response.splitlines() if r and r!='']
-#				textArea.insert(Tk.END, "\n".join(r))
-#				textArea.insert(Tk.END, "\n")
-#				textArea.yview(Tk.END)
-#			statusBar.after(1000, updateStatusBar)
-#	updateStatusBar()
-
-
-
-
-
-
 def makeSpecifiedOTFcommand(remoteFile):
 	command = ['python', C.remoteSpecificScript, remoteFile, 
 				'--regfile', RegFile.get(), '-r', RefChannel.get() ]
@@ -163,6 +110,9 @@ def sendRemoteCommand(command):
 		else:
 			response=''
 
+		if 'Best OTFS:' in response:
+			otfDict=response[response.index('Best OTFS:')+1]
+			print otfDict
 		if response.endswith(':~$ '):
 			if response!='':
 				r=[r for r in response.splitlines() if r and r!='']
@@ -183,14 +133,6 @@ def sendRemoteCommand(command):
 				textArea.yview(Tk.END)
 			statusBar.after(1000, updateStatusBar)
 	updateStatusBar()
-
-
-
-
-
-
-
-
 
 
 
@@ -270,38 +212,6 @@ def quit():
 	#textArea.insert(Tk.END, 'response')
 	outqueue=['finished']
 	root.destroy()
-
-
-#def runOTFsearch():
-#	inputFile = rawFilePath.get()
-#	if not os.path.exists(inputFile):
-#		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
-#		return 0
-#	if not isRawSIMfile(inputFile):
-#		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
-#		if response == "no":
-#			return 0
-#	if entriesValid():
-#		#	tkMessageBox.showinfo("Copying", "Copying...")
-#		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
-#	else:
-#		return 0
-#
-#
-#def runSingleReconstruct():
-#	inputFile = rawFilePath.get()
-#	if not os.path.exists(inputFile):
-#		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
-#		return 0
-#	if not isRawSIMfile(inputFile):
-#		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
-#		if response == "no":
-#			return 0
-#	if entriesValid():
-#		#	tkMessageBox.showinfo("Copying", "Copying...")
-#		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
-#	else:
-#		return 0
 
 def runReconstruct(mode):
 	inputFile = rawFilePath.get()
