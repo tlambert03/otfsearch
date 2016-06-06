@@ -7,7 +7,8 @@ remotepath='/mnt/data0/remote/'
 
 reconApp='/usr/local/bin/sir'
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
-remotescript = '/mnt/data0/SIMrecon/otfsearch/'
+remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/__main__.py'
+remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
 
 cropsize=256
 maxAge = None

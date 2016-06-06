@@ -560,7 +560,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
 	if verbose: print "reconstructing final file..."
-	reconstructed,logFile = reconstructMulti(fname, bestOTFs, reconWaves=reconWaves)
+	reconstructed,logFile = reconstructMulti(fname, OTFdict=bestOTFs, reconWaves=reconWaves)
 
 	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 	if doReg and numWaves>1: # perform channel registration
@@ -571,6 +571,8 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		import pandas as pd
 		scoreDF = pd.DataFrame(allScores)
 		scoreDF.to_csv(os.path.splitext(fname)[0]+"_scores.csv")
+
+	return bestOTFs
 
 
 

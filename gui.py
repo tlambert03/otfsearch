@@ -22,7 +22,7 @@ except ImportError as e:
 
 outqueue = [0]
 
-def transferFile(inputFile, remotepath, server, username):
+def transferFile(inputFile, remotepath, server, username, mode):
 	global outqueue
 	statusTxt.set( "connecting to " + C.server + "..." )
 	ssh = paramiko.SSHClient()
@@ -32,7 +32,7 @@ def transferFile(inputFile, remotepath, server, username):
 	thr = threading.Thread(target=sftpPut, args=(inputFile, remotepath, ssh))
 	thr.start()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	root.after(400, updateTransferStatus, remoteFile)
+	root.after(400, updateTransferStatus, (remoteFile,mode))
 
 def SFTPprogress(transferred, outOf):
 	global outqueue
@@ -47,41 +47,114 @@ def sftpPut(inputFile, remotepath, ssh):
 	ssh.close()
 	outqueue=['finished']
 
-def updateTransferStatus(remoteFile):
+def updateTransferStatus(tup):
 	global outqueue
 	msg = outqueue
 	if len(msg)==2:
 		statusTxt.set("Transfered %0.1f of %0.1f MB" % (float(msg[0])/1000000,float(msg[1])/1000000))
-		root.after(400, updateTransferStatus, remoteFile)
+		root.after(400, updateTransferStatus, tup)
 	elif msg[0] is not 'finished':
-		root.after(400, updateTransferStatus, remoteFile)
+		root.after(400, updateTransferStatus, tup)
 	else:
+		remoteFile=tup[0]
+		mode=tup[1]
 		statusTxt.set("Transfer finished. Starting remote reconstructions...")
-		triggerRemoteOTFsearch(remoteFile)
-		# By not calling root.after here, we allow update to
-		# truly end
+		if tup[1]=='search':
+			sendRemoteCommand(makeOTFsearchCommand(tup[0]))
+		elif tup[1]=='single':
+			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
+		# By not calling root.after here, we allow updateTransferStatus to truly end
 		pass
 
 
-def triggerRemoteOTFsearch(remoteFile):
+#def triggerRemoteOTFsearch(remoteFile):
+#	ssh = paramiko.SSHClient()
+#	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
+#	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
+#	ssh.connect(C.server, username=C.username)
+#	channel = ssh.invoke_shell()
+#
+#	command = ['python', C.remoteOptScript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
+#				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
+#				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
+#	if maxOTFage.get()!='None' and maxOTFage.get() != '':  
+#		command.extend(['-a', maxOTFage.get()])
+#	if maxOTFnum.get()!='None' and maxOTFnum.get() != '':  
+#		command.extend(['-n', maxOTFnum.get()])
+#
+#	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
+#	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
+#
+#	statusTxt.set( "Sending reconstruction command to remote server..." )
+#	channel.send(" ".join([str(s) for s in command]) + '\n')
+#
+#	def updateStatusBar():
+#		if channel.recv_ready():
+#			response = channel.recv(2048)
+#		else:
+#			response=''
+#
+#		if response.endswith(':~$ '):
+#			if response!='':
+#				r=[r for r in response.splitlines() if r and r!='']
+#				textArea.insert(Tk.END, "\n".join(r))
+#				textArea.insert(Tk.END, "\n")
+#				textArea.yview(Tk.END)
+#			statusTxt.set("done")
+#			ssh.close()
+#		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
+#			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
+#			ssh.close()
+#		else:
+#			statusTxt.set("scoring reconstructions...")
+#			if response!='':
+#				r=[r for r in response.splitlines() if r and r!='']
+#				textArea.insert(Tk.END, "\n".join(r))
+#				textArea.insert(Tk.END, "\n")
+#				textArea.yview(Tk.END)
+#			statusBar.after(1000, updateStatusBar)
+#	updateStatusBar()
+
+
+
+
+
+
+def makeSpecifiedOTFcommand(remoteFile):
+	command = ['python', C.remoteSpecificScript, remoteFile, 
+				'--regfile', RegFile.get(), '-r', RefChannel.get() ]
+	if wiener.get()!='None' and wiener.get():  
+		command.extend(['-w', wiener.get()])
+	if timepoints.get()!='None' and timepoints.get():  
+		command.extend(['-t',timepoints.get()])
+	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
+	for c in selectedChannels:
+		command.extend(['-o', "=".join([str(c),channelOTFPaths[c].get()])])
+	if doMax.get(): command.append('-x')
+	if doReg.get(): command.append('-g')
+	return command
+
+def makeOTFsearchCommand(remoteFile):
+	command = ['python', C.remoteOptScript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
+				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
+				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
+
+	if maxOTFage.get()!='None' and maxOTFage.get()!='': 
+		command.extend(['-a', maxOTFage.get()])
+	if maxOTFnum.get()!='None' and maxOTFnum.get()!='':  
+		command.extend(['-n', maxOTFnum.get()])
+	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
+	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
+	return command
+
+def sendRemoteCommand(command):
 	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
 	ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
 	ssh.connect(C.server, username=C.username)
 	channel = ssh.invoke_shell()
 
-	command = ['python', C.remotescript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
-				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
-				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
-	if maxOTFage.get()!='None' and maxOTFage.get() != '':  
-		command.extend(['-a', maxOTFage.get()])
-	if maxOTFnum.get()!='None' and maxOTFnum.get() != '':  
-		command.extend(['-n', maxOTFnum.get()])
-
-	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
-
-	statusTxt.set( "Sending reconstruction command to remote server..." )
+	statusTxt.set( "Sending command to remote server..." )
 	channel.send(" ".join([str(s) for s in command]) + '\n')
 
 	def updateStatusBar():
@@ -102,7 +175,7 @@ def triggerRemoteOTFsearch(remoteFile):
 			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
 			ssh.close()
 		else:
-			statusTxt.set("scoring reconstructions...")
+			statusTxt.set("Receiving feedback from server ... see text area above for details.")
 			if response!='':
 				r=[r for r in response.splitlines() if r and r!='']
 				textArea.insert(Tk.END, "\n".join(r))
@@ -110,6 +183,16 @@ def triggerRemoteOTFsearch(remoteFile):
 				textArea.yview(Tk.END)
 			statusBar.after(1000, updateStatusBar)
 	updateStatusBar()
+
+
+
+
+
+
+
+
+
+
 
 
 def activateWaves(waves):
@@ -188,7 +271,39 @@ def quit():
 	outqueue=['finished']
 	root.destroy()
 
-def runOTFsearch():
+
+#def runOTFsearch():
+#	inputFile = rawFilePath.get()
+#	if not os.path.exists(inputFile):
+#		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
+#		return 0
+#	if not isRawSIMfile(inputFile):
+#		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
+#		if response == "no":
+#			return 0
+#	if entriesValid():
+#		#	tkMessageBox.showinfo("Copying", "Copying...")
+#		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
+#	else:
+#		return 0
+#
+#
+#def runSingleReconstruct():
+#	inputFile = rawFilePath.get()
+#	if not os.path.exists(inputFile):
+#		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
+#		return 0
+#	if not isRawSIMfile(inputFile):
+#		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
+#		if response == "no":
+#			return 0
+#	if entriesValid():
+#		#	tkMessageBox.showinfo("Copying", "Copying...")
+#		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
+#	else:
+#		return 0
+
+def runReconstruct(mode):
 	inputFile = rawFilePath.get()
 	if not os.path.exists(inputFile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
@@ -197,26 +312,12 @@ def runOTFsearch():
 		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
 		if response == "no":
 			return 0
-
-	if entriesValid():
-		#	tkMessageBox.showinfo("Copying", "Copying...")
-		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
-	else:
-		return 0
-
-def runSingleReconstruct():
-	inputFile = rawFilePath.get()
-	if not os.path.exists(inputFile):
-		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
-		return 0
-	if not isRawSIMfile(inputFile):
-		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
-		if response == "no":
-			return 0
-
-	if entriesValid():
-		#	tkMessageBox.showinfo("Copying", "Copying...")
-		remoteFile = transferFile(inputFile, C.remotepath, C.server, C.username)
+	if mode=='search':
+		if entriesValid():
+			transferFile(inputFile, C.remotepath, C.server, C.username, 'search')
+	elif mode=='single':
+		if entriesValid():
+			transferFile(inputFile, C.remotepath, C.server, C.username, 'single')
 	else:
 		return 0
 
@@ -292,6 +393,9 @@ RefChannel.set(C.refChannel)
 RefChannelEntry = Tk.Entry(top_frame, textvariable=RefChannel).grid(row=3, column=1, columnspan=3, sticky='W')
 Tk.Label(top_frame, text="(435,477,528,541,608, or 683)").grid(row=3, column=4, columnspan=3,  sticky='W')
 
+quitButton = Tk.Button(top_frame, text ="Quit", command = quit).grid(row=2, column=7, rowspan=2, ipady=10, ipadx=33)
+
+
 
 # OTF search tab widgets
 
@@ -323,20 +427,19 @@ OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
 OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, sticky='W')
 
-Tk.Button(otfsearchFrame, text ="Run OTF Search", command = runOTFsearch, width=12).grid(row=8, column=1, ipady=8, ipadx=8, pady=8, padx=8)
-Tk.Button(otfsearchFrame, text ="Quit", command = quit, width=12).grid(row=8, column=2, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'search'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 
 # SINGLE RECON TAB
 
 
 Tk.Label(singleReconFrame, text='Wiener constant:').grid(row=0, sticky='e')
-wiener = Tk.DoubleVar()
+wiener = Tk.StringVar()
 wiener.set('')
 wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15).grid(row=0, column=1, sticky='W')
 
 Tk.Label(singleReconFrame, text='Timepoints:').grid(row=0, column=2, sticky='e')
-timepoints = Tk.DoubleVar()
+timepoints = Tk.StringVar()
 timepoints.set('')
 timepointsEntry = Tk.Entry(singleReconFrame, textvariable=timepoints, width=15).grid(row=0, column=3, sticky='W')
 
@@ -364,9 +467,7 @@ for i in range(len(allwaves)):
 	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
 
 
-Tk.Button(singleReconFrame, text ="Reconstruct", command = runSingleReconstruct, width=12).grid(row=8, column=1, ipady=8, ipadx=8, pady=8, padx=8)
-Tk.Button(singleReconFrame, text ="Quit", command = quit, width=12).grid(row=8, column=3, ipady=8, ipadx=8, pady=8, padx=8)
-
+Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 
 # CONFIG TAB
