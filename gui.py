@@ -76,7 +76,10 @@ def sftpPut(inputFile, remotepath, ssh):
 	statusTxt.set( "Connection successful, copying to server...")
 	sftp = ssh.open_sftp()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	sftp.put(inputFile, remoteFile, callback=SFTPprogress)
+	if os.path.basename(remoteFile) in sftp.listdir(remotepath):
+		statusTxt.set( "File already exists on remote server...")
+	else:
+		sftp.put(inputFile, remoteFile, callback=SFTPprogress)
 	ssh.close()
 	outqueue=['finished']
 
@@ -98,6 +101,16 @@ def updateTransferStatus(tup):
 			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
 		# By not calling root.after here, we allow updateTransferStatus to truly end
 		pass
+
+
+def downloadFile(remoteFile, ssh):
+	sftp = ssh.open_sftp()
+	# this assumes the user hasn't changed it since clicking "reconstruct"
+	print "Downloading: %s" % remoteFile
+	localDest = os.path.dirname(rawFilePath.get())
+	sftp.get(remoteFile, os.path.join(localDest,os.path.basename(remoteFile)))
+
+
 
 
 def makeSpecifiedOTFcommand(remoteFile):
@@ -126,13 +139,6 @@ def makeOTFsearchCommand(remoteFile):
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
 	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
 	return command
-
-def downloadFile(remoteFile, ssh):
-	sftp = ssh.open_sftp()
-	# this assumes the user hasn't changed it since clicking "reconstruct"
-	print "Downloading: %s" % remoteFile
-	localDest = os.path.dirname(rawFilePath.get())
-	sftp.get(remoteFile, os.path.join(localDest,os.path.basename(remoteFile)))
 
 
 def sendRemoteCommand(command):
