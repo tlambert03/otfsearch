@@ -110,27 +110,24 @@ def sendRemoteCommand(command):
 		else:
 			response=''
 
-		if 'Best OTFS:' in response:
-			otfDict=response[response.index('Best OTFS:')+1]
-			print otfDict
+
+		if response!='':
+			statusTxt.set("Receiving feedback from server ... see text area above for details.")
+			r=[r for r in response.splitlines() if r and r!='']
+			textArea.insert(Tk.END, "\n".join(r))
+			textArea.insert(Tk.END, "\n")
+			textArea.yview(Tk.END)
+			if 'Best OTFs:' in r:
+				otfDict=r[r.index('Best OTFs:')+1]
+				print otfDict
+				
 		if response.endswith(':~$ '):
-			if response!='':
-				r=[r for r in response.splitlines() if r and r!='']
-				textArea.insert(Tk.END, "\n".join(r))
-				textArea.insert(Tk.END, "\n")
-				textArea.yview(Tk.END)
-			statusTxt.set("done")
+			statusTxt.set("Done")
 			ssh.close()
 		elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 			statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
 			ssh.close()
 		else:
-			statusTxt.set("Receiving feedback from server ... see text area above for details.")
-			if response!='':
-				r=[r for r in response.splitlines() if r and r!='']
-				textArea.insert(Tk.END, "\n".join(r))
-				textArea.insert(Tk.END, "\n")
-				textArea.yview(Tk.END)
 			statusBar.after(1000, updateStatusBar)
 	updateStatusBar()
 

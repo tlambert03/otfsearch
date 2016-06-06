@@ -30,5 +30,5 @@ bestOTFs = makeBestReconstruction(args['inputFile'].name, cropsize=args['crop'],
 	maxAge=args['age'], maxNum=args['num'], OTFdir=args['otfdir'], reconWaves=args['channels'], regFile=args['regfile'], 
 	refChannel=args['refchannel'], doMax=args['domax'], doReg=args['doreg'], writeFile=args['writefile'], cleanup=True, verbose=True,)
 
-print "Best OTFS:"
+print "Best OTFs:"
 print bestOTFs
