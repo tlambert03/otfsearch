@@ -30,11 +30,19 @@ bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestR
 	maxAge=args['age'], maxNum=args['num'], OTFdir=args['otfdir'], reconWaves=args['channels'], regFile=args['regfile'], 
 	refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeFile=args['writefile'], cleanup=True, verbose=True,)
 
+# THIS IS NOT JUST FOR READOUT
+# these lines  trigger the gui.py program set the specific OTF window
+# with the OTFS
 if bestOTFs:
 	print ""
 	print "Best OTFs:"
 	print bestOTFs
 
+# THIS IS NOT JUST FOR READOUT
+# these lines  trigger the gui.py program to download the files
+# that are printed... 
+# the "updateStatusBar" in the "sendRemoteCommand" function looks for the 
+# 'Files Ready:' string in the response.
 print ""
 print "Files Ready:"
 if reconstructed: print "Reconstruction: %s" % reconstructed
@@ -42,4 +50,6 @@ if logFile: print "LogFile: %s" % logFile
 if registeredFile: print "Registered: %s" % registeredFile
 if maxProj: print "maxProj: %s" % maxProj
 if scoreFile: print "ScoreCSV: %s" % scoreFile
+
+# this is important for the updateStatusBar function in gui.py
 print "Done"

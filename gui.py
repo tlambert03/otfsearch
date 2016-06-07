@@ -7,11 +7,9 @@ import os
 from __init__ import isRawSIMfile
 from ScrolledText import ScrolledText
 from ttk import Notebook, Style
-import time
 import Mrc
 import threading
 from functools import partial
-import tkFont
 from ast import literal_eval
 import socket
 
@@ -22,7 +20,8 @@ except ImportError as e:
 	print 'Please install paramiko by typing "pip install paramiko" in terminal'
 	sys.exit()
 
-outqueue = [0]
+sentinel = [0]
+currentFileTransfer=str()
 
 def connectToServer(host=None, user=None):
 	if not host: host=server.get()
@@ -42,74 +41,103 @@ def connectToServer(host=None, user=None):
 		statusTxt.set( "connected to " + host )
 	except socket.gaierror as e:
 		# bad server name?
-		statusTxt.set( "bad servername?: " + host)
+		tkMessageBox.showinfo( 'Connection Failed!', "bad servername?:\n " + host)
 		return 0
 	except paramiko.PasswordRequiredException as e:
 		# bad username?
-		statusTxt.set( "bad username?: " + user)
+		tkMessageBox.showinfo( 'Connection Failed!', "bad username?\n " + user)
 		return 0
 	except paramiko.AuthenticationException as e:
 		# bad password/hostkey?
-		statusTxt.set( "Authentication error: no password/hostkey?")
+		tkMessageBox.showinfo( 'Connection Failed!', "Authentication error: no password/hostkey?")
 		return 0
 	except Exception as e:
 		print e
-		statusTxt.set(e)
+		tkMessageBox.showinfo( 'Connection Failed!',e)
 		return 0
 	return ssh
 
-def transferFile(inputFile, remotepath, mode):
-	global outqueue
+def uploadFile(inputFile, remotepath, mode):
+	'''
+	starts a thread for sftp.put.
+	the mode command is passed to the updateTranserStatus function
+	to determine which command gets sent to the server after upload
+	'''
 	ssh = connectToServer()
 	if ssh:
-		thr = threading.Thread(target=sftpPut, args=(inputFile, remotepath, ssh))
+		thr = threading.Thread(target=putFile, args=(inputFile, remotepath, ssh))
 		thr.start()
 		remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
 		root.after(400, updateTransferStatus, (remoteFile,mode))
 
-def SFTPprogress(transferred, outOf):
-	global outqueue
-	outqueue=[transferred, outOf]
-
-def sftpPut(inputFile, remotepath, ssh):
-	global outqueue
-	statusTxt.set( "Connection successful, copying to server...")
+def putFile(inputFile, remotepath, ssh):
 	sftp = ssh.open_sftp()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
 	if os.path.basename(remoteFile) in sftp.listdir(remotepath):
 		statusTxt.set( "File already exists on remote server...")
 	else:
+		statusTxt.set( "copying to server...")
+		global currentFileTransfer
+		currentFileTransfer=os.path.basename(inputFile)
 		sftp.put(inputFile, remoteFile, callback=SFTPprogress)
 	ssh.close()
-	outqueue=['finished']
+	global sentinel
+	sentinel=['putDone']
+
+
+def downloadFiles(fileList, ssh):
+	global sentinel
+	sentinel=[0]
+	print "downloadFiles called: %s " % fileList
+	if ssh:
+		thr = threading.Thread(target=getFiles, args=(fileList, ssh))
+		thr.start()
+		root.after(400, updateTransferStatus, (fileList,))
+
+
+def getFiles(fileList, ssh):
+	print "getFiles called:"
+	print ssh
+	#statusTxt.set( "Downloading files...")
+	
+	sftp = ssh.open_sftp()
+	# this assumes the user hasn't changed it since clicking "reconstruct"
+	for file in fileList:
+		#statusTxt.set( "Downloading %s..." % file)
+		print "Downloading: %s" % file
+		localDest = os.path.dirname(rawFilePath.get())
+		global currentFileTransfer
+		currentFileTransfer=os.path.basename(file)
+		sftp.get(file, os.path.join(localDest,os.path.basename(file)), callback=SFTPprogress)
+	ssh.close()
+	global sentinel
+	sentinel=['getDone']
+
+
+def SFTPprogress(transferred, outOf):
+	global sentinel
+	sentinel=['sftpProgress',transferred, outOf]
+
 
 def updateTransferStatus(tup):
-	global outqueue
-	msg = outqueue
-	if len(msg)==2:
-		statusTxt.set("Transfered %0.1f of %0.1f MB" % (float(msg[0])/1000000,float(msg[1])/1000000))
+	print "update TRANSFER CALLED"
+	global sentinel
+	if sentinel[0]=='sftpProgress':
+		statusTxt.set("Transferring %s: %0.1f of %0.1f MB" % (currentFileTransfer,float(sentinel[1])/1000000,float(sentinel[2])/1000000))
 		root.after(400, updateTransferStatus, tup)
-	elif msg[0] is not 'finished':
-		root.after(400, updateTransferStatus, tup)
-	else:
-		remoteFile=tup[0]
-		mode=tup[1]
-		statusTxt.set("Transfer finished. Starting remote reconstructions...")
+	elif sentinel[0] is 'putDone':
+		statusTxt.set("Upload finished...")
 		if tup[1]=='search':
 			sendRemoteCommand(makeOTFsearchCommand(tup[0]))
 		elif tup[1]=='single':
 			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
 		# By not calling root.after here, we allow updateTransferStatus to truly end
 		pass
-
-
-def downloadFile(remoteFile, ssh):
-	sftp = ssh.open_sftp()
-	# this assumes the user hasn't changed it since clicking "reconstruct"
-	print "Downloading: %s" % remoteFile
-	localDest = os.path.dirname(rawFilePath.get())
-	sftp.get(remoteFile, os.path.join(localDest,os.path.basename(remoteFile)))
-
+	elif sentinel[0] is 'getDone':
+		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
+		pass
+	else:
+		root.after(400, updateTransferStatus, tup)
 
 
 
@@ -172,11 +200,12 @@ def sendRemoteCommand(command):
 				if 'Files Ready:' in r:
 					i=r.index('Files Ready:')+1
 					statusTxt.set("Downloading files from server... ")
+					fileList = []
 					while not r[i].startswith('Done'):
-						remoteFile = r[i].split(": ")[1]
-						statusTxt.set( "Downloading: %s" % remoteFile )
-						downloadFile(remoteFile, ssh)
+						fileList.append(r[i].split(": ")[1])
 						i+=1
+					downloadFiles(fileList, ssh)
+					return
 			if response.endswith(':~$ '):
 				if 'OTFs' not in statusTxt.get():
 					statusTxt.set("Done")
@@ -262,7 +291,8 @@ def getRegFile():
 
 def quit():
 	#textArea.insert(Tk.END, 'response')
-	outqueue=['finished']
+	global sentinel 
+	sentinel=['finished']
 	root.destroy()
 
 def runReconstruct(mode):
@@ -276,31 +306,35 @@ def runReconstruct(mode):
 			return 0
 	if mode=='search':
 		if entriesValid():
-			transferFile(inputFile, C.remotepath, 'search')
+			uploadFile(inputFile, C.remotepath, 'search')
 	elif mode=='single':
 		if entriesValid():
-			transferFile(inputFile, C.remotepath, 'single')
+			uploadFile(inputFile, C.remotepath, 'single')
 	else:
 		return 0
 
 
 
 root = Tk.Tk()
-root.title('SIM Reconstruction Tool')
+root.title('CBMF SIM Reconstruction Tool')
 #center the window on screen with specified dimensions
 
 top_frame = Tk.Frame(root)
 
 Nb = Notebook(root)
-Style().theme_use('clam')
+Style().theme_use('aqua')
 
 otfsearchFrame = Tk.Frame(Nb)
 singleReconFrame = Tk.Frame(Nb)
 configFrame = Tk.Frame(Nb)
+batchFrame = Tk.Frame(Nb)
+registrationFrame = Tk.Frame(Nb)
 helpFrame = Tk.Frame(Nb)
 
 Nb.add(otfsearchFrame, text='Optimized Reconstruction')
 Nb.add(singleReconFrame, text='Specify OTFs')
+Nb.add(batchFrame, text='Batch')
+Nb.add(registrationFrame, text='Channel Registration')
 Nb.add(configFrame, text='Configuration')
 Nb.add(helpFrame, text='Help')
 
@@ -402,9 +436,63 @@ for i in range(len(allwaves)):
 	Tk.Label(singleReconFrame, text=str(allwaves[i])+"nm OTF: ").grid(row=i+1, sticky='E')
 
 def getChannelOTF(var):
-	filename = tkFileDialog.askopenfilename(filetypes=[('OTF files', '.otf')])
-	if filename:
-		channelOTFPaths[var].set(filename)
+
+	ssh = connectToServer()
+	sftp = ssh.open_sftp()
+	otflist = sorted([item for item in sftp.listdir(OTFdir.get()) if item.endswith('.otf')])
+	selectedlist = [item for item in otflist if item.startswith(str(var))]
+	fullist=0
+
+	top = Tk.Toplevel()
+	top.title('Choose OTF for %d' % var)
+	scrollbar = Tk.Scrollbar(top)
+	scrollbar.grid(row=0, column=3, sticky='ns')
+
+	otfListBox = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
+	
+	for item in selectedlist:
+	    otfListBox.insert(Tk.END, os.path.basename(item))
+	otfListBox.grid(row=0, column=0, columnspan=3)
+
+	scrollbar.config(command=otfListBox.yview)
+
+	def Select():
+		items = otfListBox.curselection()
+		if fullist:
+			item = [otflist[int(item)] for item in items][0]
+		else:
+			item = [selectedlist[int(item)] for item in items][0]
+		if item: 
+			channelOTFPaths[var].set(os.path.join(OTFdir.get(),item))
+		top.destroy()
+
+	def ShowAll():
+		otfListBox.delete(0, 'end')
+		for item in otflist:
+			otfListBox.insert(Tk.END, os.path.basename(item))
+    	fullist=1
+
+	def Cancel():
+		top.destroy()
+
+	selectButton = Tk.Button(top, text="Select",command=Select, pady=6, padx=10)
+	selectButton.grid(row=1, column=0)
+
+	cancelButton = Tk.Button(top, text="ShowAll",command=ShowAll, pady=6, padx=10)
+	cancelButton.grid(row=1, column=2)
+
+	cancelButton = Tk.Button(top, text="Cancel",command=Cancel, pady=6, padx=10)
+	cancelButton.grid(row=1, column=1)
+	
+	top.update_idletasks()
+	w = top.winfo_screenwidth()
+	h = top.winfo_screenheight()
+	size = tuple(int(_) for _ in top.geometry().split('+')[0].split('x'))
+	x = w/2 - size[0]/2
+	y = h/2 - size[1]/1.3
+	top.geometry("%dx%d+%d+%d" % (size + (x, y)))
+	top.resizable(0,0)
+
 
 allwaves=C.valid['waves']
 channelOTFPaths={}
@@ -458,7 +546,7 @@ def testConnection():
 	if connectToServer():
 		tkMessageBox.showinfo('Yay!','%s\nConnection successfull!' % server.get())
 	else:
-		tkMessageBox.showinfo('Aw snap.','%s\nConnection failed!' % server.get())
+		statusTxt.set('Aw snap.','%s\nConnection failed!' % server.get())
 
 
 Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
@@ -468,25 +556,26 @@ Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=
 # Help Frame
 
 
-helpText = Tk.Text(helpFrame)
+helpText = ScrolledText(helpFrame)
 helpText.pack(fill='both')
 
-helpText.tag_configure("heading", font=('Arial',14,'bold'))
-helpText.tag_configure("paragraph", font=('Arial',12,'normal'))
-helpText.tag_configure("code", font=('Courier',12,'bold'), background='#bbb')
-helpText.tag_configure("italics", font=('Arial',14,'italic'))
+helpText.tag_configure("heading", font=('Helvetica',12,'bold'))
+helpText.tag_configure("paragraph", font=('Helvetica',10,'normal'))
+helpText.tag_configure("code", font=('Monaco',10,'bold'))
+helpText.tag_configure("italics", font=('Helvetica',12,'italic'))
+helpText.tag_configure("small", font=('Helvetica',8))
 
 helpText.insert('insert','Input File\n', 'heading')
 helpText.insert('insert','Select a raw SIM .dv file to process and choose the ', 'paragraph')
-helpText.insert('insert',' Channels ', 'code')
-helpText.insert('insert',' that you would like to include in the reconstructions. ', 'paragraph')
+helpText.insert('insert','Channels ', 'code')
+helpText.insert('insert','that you would like to include in the reconstructions. ', 'paragraph')
 helpText.insert('insert','When you open a new file, the channels will be automatically populated based on the available channels in the image. \n', 'paragraph')
 helpText.insert('insert','\n')
 helpText.insert('insert','Optimized Reconstruction \n', 'heading')
 helpText.insert('insert','Use this tab to search the folder of OTFs specified in the configuration tab for the optimal OTF for each channel. ', 'paragraph')
 helpText.insert('insert','Adjust the OTF search parameters in the optimized reconstruction tab and hit the ', 'paragraph')
-helpText.insert('insert',' Run OTF Search ', 'code')
-helpText.insert('insert',' button. \n', 'paragraph')
+helpText.insert('insert','Run OTF Search ', 'code')
+helpText.insert('insert','button. \n', 'paragraph')
 helpText.insert('insert','\n')
 helpText.insert('insert','Specify OTFs\n', 'heading')
 helpText.insert('insert','This tab can be used to specifiy OTFs for each channel present in the file, then perform a single reconstruction. \n ', 'paragraph')
@@ -494,10 +583,10 @@ helpText.insert('insert','\n')
 helpText.insert('insert','Configuration\n', 'heading')
 helpText.insert('insert','The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
 helpText.insert('insert','\n')
-helpText.insert('insert',"If you are getting bugs or unexpected results, don't hesistate to ask for help!", 'italics')
+helpText.insert('insert',"If you are getting bugs or unexpected results, don't hesistate to ask for help!\n", 'italics')
+helpText.insert('insert',"Created by Talley Lambert, 2016", 'small')
 
-
-helpText.config(height=15, state='disabled')
+helpText.config(height=17, state='disabled')
 
 # TEXT AREA
 textArea = ScrolledText(textAreaFrame)
@@ -519,6 +608,7 @@ x = w/2 - size[0]/2
 y = h/2 - size[1]/1.3
 root.geometry("%dx%d+%d+%d" % (size + (x, y)))
 root.resizable(0,0)
+
 
 #START PROGRAM
 root.mainloop()

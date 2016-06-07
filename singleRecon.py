@@ -87,10 +87,17 @@ if args['doreg'] and numWaves>1: # perform channel registration
 if timecropped:
 	os.remove(inputFile)
 
+# THIS IS NOT JUST FOR READOUT
+# these lines  trigger the gui.py program to download the files
+# that are printed... 
+# the "updateStatusBar" in the "sendRemoteCommand" function looks for the 
+# 'Files Ready:' string in the response.
 print ""
 print "Files Ready:"
 if reconstructed: print "Reconstruction: %s" % reconstructed
 if logFile: print "LogFile: %s" % logFile
 if registeredFile: print "Registered: %s" % registeredFile
 if maxProj: print "maxProj: %s" % maxProj
+
+# this is important for the updateStatusBar function in gui.py
 print "Done"
