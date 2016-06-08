@@ -73,7 +73,7 @@ def uploadFile(inputFile, remotepath, mode):
 def putFile(inputFile, remotepath, ssh):
 	sftp = ssh.open_sftp()
 	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	if os.path.basename(remoteFile) in sftp.listdir(remotepath):
+	if os.path.basename(remoteFile) in sftp.listdir(remotepath) and sftp.stat(remoteFile).st_size ==  os.stat(inputFile).st_size:
 		statusTxt.set( "File already exists on remote server...")
 	else:
 		statusTxt.set( "copying to server...")
@@ -88,7 +88,7 @@ def putFile(inputFile, remotepath, ssh):
 def downloadFiles(fileList, ssh):
 	global sentinel
 	sentinel=[0]
-	print "downloadFiles called: %s " % fileList
+
 	if ssh:
 		thr = threading.Thread(target=getFiles, args=(fileList, ssh))
 		thr.start()
@@ -96,8 +96,7 @@ def downloadFiles(fileList, ssh):
 
 
 def getFiles(fileList, ssh):
-	print "getFiles called:"
-	print ssh
+
 	#statusTxt.set( "Downloading files...")
 	
 	sftp = ssh.open_sftp()
@@ -120,7 +119,6 @@ def SFTPprogress(transferred, outOf):
 
 
 def updateTransferStatus(tup):
-	print "update TRANSFER CALLED"
 	global sentinel
 	if sentinel[0]=='sftpProgress':
 		statusTxt.set("Transferring %s: %0.1f of %0.1f MB" % (currentFileTransfer,float(sentinel[1])/1000000,float(sentinel[2])/1000000))

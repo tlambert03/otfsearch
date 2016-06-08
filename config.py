@@ -18,6 +18,7 @@ oilMax = 1522
 
 doReg = False
 MatlabRegScript = 'OMXreg2'
+MatlabTformCalc = 'OMXregCal'
 refChannel = 528
 regFile = '/mnt/data0/MATLAB/talley/OMXwarp/OMXreg_160323_speck.mat'
 doMax = False

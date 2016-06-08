@@ -5,7 +5,6 @@ import config
 from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime, isRawSIMfile, query_yes_no, matlabReg
 import Mrc
 
-
 def otfAssignment(string):
 	if "=" in string and len(string.split('='))==2:
 		k,v = string.split('=')
@@ -18,7 +17,7 @@ def otfAssignment(string):
 	msg = "OTF assignment %r is not of the form <WAVE>=<FILE>" % string
 	raise argparse.ArgumentTypeError(msg)
 
-parser = argparse.ArgumentParser(description='OTF matching program', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='Single SIM file reconstruction', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('inputFile', help='The file to process', type=file)
 parser.add_argument('--outputFile', help='Optional name of output file to process', default=None, metavar='FILE')
