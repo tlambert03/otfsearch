@@ -320,7 +320,7 @@ root.title('CBMF SIM Reconstruction Tool')
 top_frame = Tk.Frame(root)
 
 Nb = Notebook(root)
-Style().theme_use('aqua')
+Style().theme_use('clam')
 
 otfsearchFrame = Tk.Frame(Nb)
 singleReconFrame = Tk.Frame(Nb)
@@ -548,6 +548,26 @@ def testConnection():
 
 
 Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
+
+
+
+# REGISTRATION TAB
+
+def getregCalImage():
+	filename = tkFileDialog.askdirectory()
+	if filename:
+		regCalImage.set( filename )
+
+Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
+regCalImage = Tk.StringVar()
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=35).grid(row=0, column=1, columnspan=5, sticky='W')
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Dir", command = getregCalImage).grid(row=0, column=6, ipady=3, ipadx=10, padx=2)
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Choose Dir", command = sendRegCal).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
+
+def sendRegCal():
+	filename = tkFileDialog.askdirectory()
+	if filename:
+		regCalImage.set( filename )
 
 
 
