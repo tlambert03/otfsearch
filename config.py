@@ -9,6 +9,7 @@ reconApp='/usr/local/bin/sir'
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
 remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/__main__.py'
 remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
+remoteRegCalibration = '/mnt/data0/SIMrecon/otfsearch/calculateMatlabTform.py'
 
 cropsize=256
 maxAge = None
@@ -17,11 +18,13 @@ oilMin = 1510
 oilMax = 1522
 
 doReg = False
+doMax = False
 MatlabRegScript = 'OMXreg2'
 MatlabTformCalc = 'OMXregCal'
 refChannel = 528
 regFile = '/mnt/data0/MATLAB/talley/OMXwarp/OMXreg_160323_speck.mat'
-doMax = False
+CalibrationIter = 10000
+regFileDir = '/mnt/data0/regfiles/'
 
 OTFtemplate = 'wavelength_date_oil_medium_angle_beadnum'
 OTFdelim = '_'

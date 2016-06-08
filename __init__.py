@@ -391,7 +391,7 @@ def printFormattedScores(scoreList):
 	for i in scoreList: print "{:<8} {:<10} {:<23} {:<8} {:<05.3}    {:<04.3}".format(i['wavelength'], i['channelDecay'], i['OTFcode'], i['OTFoil'], np.average(i['modamp2']), i['RIH'])
 
 
-def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, oilMin=1510, oilMax=1524, maxAge=None, maxNum=None, verbose=True, cleanup=True):
+def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, forceChannels=None, oilMin=1510, oilMax=1524, maxAge=None, maxNum=None, verbose=True, cleanup=True):
 	'''
 	Takes an input file and reconstructs it by all of the OTFs that match certain criteria
 
@@ -463,8 +463,9 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, oi
 	for file in splitfiles:
 		namesplit = os.path.splitext(file)
 		
-		wave = Mrc.open(file).hdr.wave[0]
-		if verbose: print "%s - Channel: %s" % (os.path.basename(file), wave)
+		imChannel = Mrc.open(file).hdr.wave[0]
+		
+		if verbose: print "%s - Channel: %s" % (os.path.basename(file), imChannel)
 
 		# raw data/bleaching test
 		indat=Mrc.bindFile(file)
@@ -476,10 +477,16 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, oi
 					"TIV" : TIV,
 					"channelDecay" : channelDecay,						
 					"angleDiffs" : angleDiffs,
-					"wavelength" : wave
+					"imChannel" : imChannel
 		}
 
-		OTFlist = getMatchingOTFs(otfDict,wave,oilMin,oilMax, maxAge=maxAge, maxNum=maxNum)
+		# this line allows the user to match certain image channels to certain OTF channels
+		if forceChannels:
+			otfWave = forceChannels[imChannel] if forceChannels.has_key(imChannel) else imChannel
+		else:
+			otfWave = imChannel
+
+		OTFlist = getMatchingOTFs(otfDict,otfWave,oilMin,oilMax, maxAge=maxAge, maxNum=maxNum)
 
 		for otf in OTFlist:
 			procFile=namesplit[0] + "_" + otf['code'] + "_PROC" + namesplit[1]
@@ -555,13 +562,15 @@ def matlabReg(fname,regFile,refChannel,doMax):
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
-	reconWaves=None, regFile=config.regFile, refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True,):
+	reconWaves=None, forceChannels=None, regFile=config.regFile, refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
 			sys.exit("Quitting...")
 
-	allScores = scoreOTFs(fname, cropsize=cropsize, OTFdir=config.OTFdir, reconWaves=reconWaves, oilMin=oilMin, oilMax=oilMax, maxAge=maxAge, maxNum=maxNum, verbose=verbose, cleanup=cleanup)
+	allScores = scoreOTFs(fname, cropsize=cropsize, OTFdir=config.OTFdir, reconWaves=reconWaves, 
+							forceChannels=forceChannels, oilMin=oilMin, oilMax=oilMax, maxAge=maxAge, 
+							maxNum=maxNum, verbose=verbose, cleanup=cleanup)
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
 	if verbose: print "reconstructing final file..."

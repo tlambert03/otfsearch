@@ -63,6 +63,7 @@ def uploadFile(inputFile, remotepath, mode):
 	the mode command is passed to the updateTranserStatus function
 	to determine which command gets sent to the server after upload
 	'''
+	print 'uploading file: %s' % inputFile
 	ssh = connectToServer()
 	if ssh:
 		thr = threading.Thread(target=putFile, args=(inputFile, remotepath, ssh))
@@ -96,9 +97,7 @@ def downloadFiles(fileList, ssh):
 
 
 def getFiles(fileList, ssh):
-
 	#statusTxt.set( "Downloading files...")
-	
 	sftp = ssh.open_sftp()
 	# this assumes the user hasn't changed it since clicking "reconstruct"
 	for file in fileList:
@@ -129,6 +128,8 @@ def updateTransferStatus(tup):
 			sendRemoteCommand(makeOTFsearchCommand(tup[0]))
 		elif tup[1]=='single':
 			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
+		elif tup[1]=='registerCal':
+			sendRemoteCommand(makeRegCalCommand(tup[0]))
 		# By not calling root.after here, we allow updateTransferStatus to truly end
 		pass
 	elif sentinel[0] is 'getDone':
@@ -138,6 +139,10 @@ def updateTransferStatus(tup):
 		root.after(400, updateTransferStatus, tup)
 
 
+def makeRegCalCommand(remoteFile):
+	command = ['python', C.remoteRegCalibration, remoteFile, '--outpath', C.regFileDir]
+	if calibrationIterations.get(): command.extend(['--iter', calibrationIterations.get()])
+	return command
 
 def makeSpecifiedOTFcommand(remoteFile):
 	command = ['python', C.remoteSpecificScript, remoteFile, 
@@ -281,10 +286,63 @@ def getSIRconfigDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
 		SIRconfigDir.set( filename )
+
+
+
 def getRegFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('MATLAB files', '.mat')])
 	if filename:
 		RegFile.set( filename )
+
+
+
+def getRegFile():
+
+	ssh = connectToServer()
+	sftp = ssh.open_sftp()
+	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat')])
+
+	top = Tk.Toplevel()
+	top.title('Choose registration file')
+	scrollbar = Tk.Scrollbar(top)
+	scrollbar.grid(row=0, column=3, sticky='ns')
+
+	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=45)
+	
+	for item in reglist:
+	    LB.insert(Tk.END, os.path.basename(item))
+	LB.grid(row=0, column=0, columnspan=3)
+
+	scrollbar.config(command=LB.yview)
+
+	def Select():
+		items = LB.curselection()
+
+		item = [reglist[int(item)] for item in items][0]
+
+		if item: 
+			RegFile.set(os.path.join(C.regFileDir,item))
+		top.destroy()
+
+	def Cancel():
+		top.destroy()
+
+	selectButton = Tk.Button(top, text="Select",command=Select, pady=6, padx=10)
+	selectButton.grid(row=1, column=0)
+
+	cancelButton = Tk.Button(top, text="Cancel",command=Cancel, pady=6, padx=10)
+	cancelButton.grid(row=1, column=1)
+	
+	top.update_idletasks()
+	w = top.winfo_screenwidth()
+	h = top.winfo_screenheight()
+	size = tuple(int(_) for _ in top.geometry().split('+')[0].split('x'))
+	x = w/2 - size[0]/2
+	y = h/2 - size[1]/1.3
+	top.geometry("%dx%d+%d+%d" % (size + (x, y)))
+	top.resizable(0,0)
+
+
 
 
 def quit():
@@ -393,17 +451,15 @@ for i in range(len(leftLabels)):
 maxOTFage = Tk.StringVar()
 maxOTFage.set(C.maxAge if C.maxAge is not None else '')
 maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=0, column=1, sticky='W')
-Tk.Label(otfsearchFrame, text="(leave blank for no limit)").grid(row=0, column=2,  sticky='W')
+
 
 maxOTFnum = Tk.StringVar()
 maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
 maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=1, column=1, sticky='W')
-Tk.Label(otfsearchFrame, text="(leave blank for no limit)").grid(row=1, column=2,  sticky='W')
 
 cropsize = Tk.StringVar()
 cropsize.set(C.cropsize)
 cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=2, column=1, sticky='W')
-Tk.Label(otfsearchFrame, text="(make it a power of 2)").grid(row=2, column=2,  sticky='W')
 
 OilMin = Tk.StringVar()
 OilMin.set(C.oilMin)
@@ -446,16 +502,16 @@ def getChannelOTF(var):
 	scrollbar = Tk.Scrollbar(top)
 	scrollbar.grid(row=0, column=3, sticky='ns')
 
-	otfListBox = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
+	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
 	
 	for item in selectedlist:
-	    otfListBox.insert(Tk.END, os.path.basename(item))
-	otfListBox.grid(row=0, column=0, columnspan=3)
+	    LB.insert(Tk.END, os.path.basename(item))
+	LB.grid(row=0, column=0, columnspan=3)
 
-	scrollbar.config(command=otfListBox.yview)
+	scrollbar.config(command=LB.yview)
 
 	def Select():
-		items = otfListBox.curselection()
+		items = LB.curselection()
 		if fullist:
 			item = [otflist[int(item)] for item in items][0]
 		else:
@@ -465,9 +521,9 @@ def getChannelOTF(var):
 		top.destroy()
 
 	def ShowAll():
-		otfListBox.delete(0, 'end')
+		LB.delete(0, 'end')
 		for item in otflist:
-			otfListBox.insert(Tk.END, os.path.basename(item))
+			LB.insert(Tk.END, os.path.basename(item))
     	fullist=1
 
 	def Cancel():
@@ -490,6 +546,7 @@ def getChannelOTF(var):
 	y = h/2 - size[1]/1.3
 	top.geometry("%dx%d+%d+%d" % (size + (x, y)))
 	top.resizable(0,0)
+
 
 
 allwaves=C.valid['waves']
@@ -554,20 +611,29 @@ Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=
 # REGISTRATION TAB
 
 def getregCalImage():
-	filename = tkFileDialog.askdirectory()
+	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
 	if filename:
 		regCalImage.set( filename )
+
+
+def sendRegCal():
+	inputFile = regCalImage.get()
+	if not os.path.exists(inputFile):
+		tkMessageBox.showinfo("Input file Error", "Registration calibration image doesn't exist")
+		return 0
+	uploadFile(inputFile, C.remotepath, 'registerCal')
+
 
 Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
 regCalImage = Tk.StringVar()
 regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=35).grid(row=0, column=1, columnspan=5, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Dir", command = getregCalImage).grid(row=0, column=6, ipady=3, ipadx=10, padx=2)
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Choose Dir", command = sendRegCal).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Registration Image", command = getregCalImage).grid(row=0, column=3, ipady=3, ipadx=10, padx=2, stick='w')
 
-def sendRegCal():
-	filename = tkFileDialog.askdirectory()
-	if filename:
-		regCalImage.set( filename )
+Tk.Label(registrationFrame, text='Iterations:').grid(row=1, sticky='e')
+calibrationIterations = Tk.IntVar()
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=35).grid(row=1, column=1, columnspan=2, sticky='W')
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Perform Registration Calibration", command = sendRegCal).grid(row=1, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+calibrationIterations.set(C.CalibrationIter)
 
 
 
