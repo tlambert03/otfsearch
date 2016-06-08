@@ -15,7 +15,7 @@ def calcMatlabTform(inputFile,outpath=None, refChannels=None, iterations=None, d
 	if interpType : matlabString += ",'interp', '%s' " % interpType
 	matlabString += "); exit;"
 
-	#print matlabString
+	print matlabString
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 
 
