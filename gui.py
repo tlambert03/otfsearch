@@ -450,27 +450,34 @@ for i in range(len(leftLabels)):
 
 maxOTFage = Tk.StringVar()
 maxOTFage.set(C.maxAge if C.maxAge is not None else '')
-maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=0, column=1, sticky='W')
-
+maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=0, column=1, columnspan=3, sticky='W')
 
 maxOTFnum = Tk.StringVar()
 maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
-maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=1, column=1, sticky='W')
+maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=1, column=1, columnspan=3, sticky='W')
 
 cropsize = Tk.StringVar()
 cropsize.set(C.cropsize)
-cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=2, column=1, sticky='W')
+cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=2, column=1, columnspan=3, sticky='W')
 
 OilMin = Tk.StringVar()
 OilMin.set(C.oilMin)
-OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=3, column=1, sticky='W')
+OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=3, column=1, columnspan=3, sticky='W')
 
 OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
-OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, sticky='W')
+OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, columnspan=3, sticky='W')
 
 Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'search'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
+
+forceChannels={}
+Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings", font=('Arial',12, 'bold')).grid(row=0, column=5, columnspan=3, sticky='w', padx=(20, 0))
+for i in range(len(allwaves)):
+	Tk.Label(otfsearchFrame, text="%snm Channel OTF:" % allwaves[i]).grid(row=i+1, column=5, sticky='E', padx=(40, 0))
+	forceChannels[i] = Tk.IntVar()
+	Tk.OptionMenu(otfsearchFrame, forceChannels[i], *allwaves).grid(row=i+1, column=6,sticky='w')
+	forceChannels[i].set(allwaves[i])
 
 # SINGLE RECON TAB
 
@@ -553,7 +560,6 @@ allwaves=C.valid['waves']
 channelOTFPaths={}
 channelOTFEntries={}
 channelOTFButtons={}
-
 
 for i in range(len(allwaves)):
 	channelOTFPaths[allwaves[i]] = Tk.StringVar()
