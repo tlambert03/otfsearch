@@ -331,8 +331,8 @@ helpFrame = Tk.Frame(Nb)
 
 Nb.add(otfsearchFrame, text='Optimized Reconstruction')
 Nb.add(singleReconFrame, text='Specify OTFs')
-Nb.add(batchFrame, text='Batch')
 Nb.add(registrationFrame, text='Channel Registration')
+Nb.add(batchFrame, text='Batch')
 Nb.add(configFrame, text='Configuration')
 Nb.add(helpFrame, text='Help')
 

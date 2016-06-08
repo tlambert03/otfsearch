@@ -31,14 +31,14 @@ def cudaSIrecon(inputFile, otfFile, outputFile=None, app=None, **kwargs):
 
 
 
-
 if __name__=="__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description='Single SIM file reconstruction', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('input-file', help='input file (or data folder in TIFF mode)', type=file)
 	parser.add_argument('otf-file', help='OTF file', type=file)
 	parser.add_argument('--output-file', help='output file (or filename pattern in TIFF mode)', default=None)
-	parser.add_argument('--wiener', help='Wiener constant', type=float)
+	parser.add_argument('-w','--wiener', help='Wiener constant', type=float)
+	parser.add_argument('-b','--background', help='number of output orders; must be <= norders', type=int)
 	parser.add_argument('--usecorr', help='use the flat-field correction file provided', type=file)
 	parser.add_argument('-c','--config', help='name of a file of a configuration.', type=file)
 	# CCD correction file is a .dv file with two 2D floating-point images. 
@@ -61,7 +61,6 @@ if __name__=="__main__":
 	parser.add_argument('--zzoom', help='axial zoom factor', type=float)
 	parser.add_argument('--explodefact', help='artificially exploding the reciprocal-space distance between orders by this factor', type=float)
 	parser.add_argument('--nofilteroverlaps', help='do not filter the overlaping region between bands (usually used in trouble shooting)', type=bool)
-	parser.add_argument('--background', help='number of output orders; must be <= norders', type=int)
 	parser.add_argument('--forcemodamp', help='modamps forced to these values')
 	parser.add_argument('--k0angles', help='user given pattern vector k0 angles for all directions')
 	parser.add_argument('--otfRA', help='using rotationally averaged OTF', type=bool)
@@ -69,7 +68,7 @@ if __name__=="__main__":
 	parser.add_argument('--k0searchAll', help='search for k0 at all time points', type=bool)
 	parser.add_argument('--equalizez', help='bleach correcting for z', type=bool)
 	parser.add_argument('--equalizet', help='bleach correcting for time', type=bool)
-	parser.add_argument('--dampenOrder0', help='dampen order-0 in final assembly', type=bool)
+	parser.add_argument('-d','--dampenOrder0', help='dampen order-0 in final assembly', type=bool)
 	# It sort of apply a high pass filter (an inverted Gaussian centering around the origin) 
 	# to the order 0 component (i.e., what conventional wide-field microscope would get normally) 
 	# to suppress the all low-resolution information, not just the singularity at the origin 
