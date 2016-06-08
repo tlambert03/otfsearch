@@ -320,7 +320,7 @@ root.title('CBMF SIM Reconstruction Tool')
 top_frame = Tk.Frame(root)
 
 Nb = Notebook(root)
-Style().theme_use('aqua')
+Style().theme_use('clam')
 
 otfsearchFrame = Tk.Frame(Nb)
 singleReconFrame = Tk.Frame(Nb)
