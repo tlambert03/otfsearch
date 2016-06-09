@@ -326,6 +326,7 @@ def getRIH(im):
 		return posNegRatio
 	else:
 		print "! histogram minimum above background. unable to calculate +ve/-ve intensity ratio"
+		return 0
 
 
 def getSAM(im):
