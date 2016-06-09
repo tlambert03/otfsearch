@@ -45,19 +45,19 @@ def goodChannel(string):
 	goodChannels=config.valid['waves']
 	value = int(string)
 	if value not in goodChannels:
-	    msg = "%r is not one of the acceptable channel names: %s" % (string, ', '.join(str(x) for x in goodChannels))
-	    raise argparse.ArgumentTypeError(msg)
+		msg = "%r is not one of the acceptable channel names: %s" % (string, ', '.join(str(x) for x in goodChannels))
+		raise argparse.ArgumentTypeError(msg)
 	return value
 
 def cropCheck(string):
 	import argparse
 	value = int(string)
 	if not (value != 0 and ((value & (value - 1)) == 0)):
-	    msg = "%r is not a power of two" % string
-	    raise argparse.ArgumentTypeError(msg)
+		msg = "%r is not a power of two" % string
+		raise argparse.ArgumentTypeError(msg)
 	if value > 1024 or value < 32:
-	    msg = "Cropsize must be between 32 and 1024"
-	    raise argparse.ArgumentTypeError(msg)
+		msg = "Cropsize must be between 32 and 1024"
+		raise argparse.ArgumentTypeError(msg)
 	return value
 
 
@@ -584,8 +584,10 @@ def matlabReg(fname,regFile,refChannel,doMax):
 	return (registeredFile, maxProj)
 
 
-def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
-	reconWaves=None, forceChannels=None, regFile=config.regFile, refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
+def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
+							maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
+							reconWaves=None, forceChannels=None, regFile=config.regFile, 
+							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
@@ -618,6 +620,28 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		scoreDF.to_csv(scoreFile)
 
 	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
+
+
+
+def batchRecon(directory, mode, **kwargs):
+
+	for root, subdir, file in os.walk(directory):
+		if isRawSIMfile(file):
+			if mode=='optimal':
+				print "Doing optimal reconstruction on file: %s" % file
+				makeBestReconstruction(file, **kwargs)
+			elif mode=='single':
+				print "Doing single reconstruction on file: %s" % file
+				reconstructMulti(file, **kwargs)
+			else:
+				raise ValueError('Mode %s in batchRecon function was not understood' % mode)
+				return 0
+			return 1
+
+
+
+
+
 
 
 

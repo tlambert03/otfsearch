@@ -1,7 +1,8 @@
 add batch processing
 allow single image registration option without reconstruction
+add more raw data indices to score, such as snr? max/min/mean?
 
-
+give more feedback on raw data to the user
 change cropsize box in gui to option box? -> make it a class
 add options to channel registration calibration command
 rethink where stuff goes on configuration tab and others
