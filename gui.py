@@ -22,6 +22,7 @@ except ImportError as e:
 
 sentinel = [0]
 currentFileTransfer=str()
+serverBusy = 0
 
 def connectToServer(host=None, user=None):
 	if not host: host=server.get()
@@ -89,7 +90,6 @@ def putFile(inputFile, remotepath, ssh):
 def downloadFiles(fileList, ssh):
 	global sentinel
 	sentinel=[0]
-
 	if ssh:
 		thr = threading.Thread(target=getFiles, args=(fileList, ssh))
 		thr.start()
@@ -124,7 +124,7 @@ def updateTransferStatus(tup):
 		root.after(400, updateTransferStatus, tup)
 	elif sentinel[0] is 'putDone':
 		statusTxt.set("Upload finished...")
-		if tup[1]=='search':
+		if tup[1]=='optimal':
 			sendRemoteCommand(makeOTFsearchCommand(tup[0]))
 		elif tup[1]=='single':
 			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
@@ -219,9 +219,11 @@ def sendRemoteCommand(command):
 				if 'OTFs' not in statusTxt.get():
 					statusTxt.set("Done")
 				ssh.close()
+
 			elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 				statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
 				ssh.close()
+
 			else:
 				statusBar.after(1000, updateStatusBar)
 		updateStatusBar()
@@ -241,6 +243,9 @@ def deactivateWaves(waves):
 
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
+	setRawFile(filename)
+
+def setRawFile(filename):
 	if filename:
 		rawFilePath.set( filename )
 		try:
@@ -251,6 +256,7 @@ def getRawFile():
 			statusTxt.set('Valid .dv file')
 		except ValueError:
 			statusTxt.set('Unable to read file... is it a .dv file?')
+
 
 def entriesValid():
 	if maxOTFnum.get():
@@ -296,6 +302,10 @@ def getSIRconfigDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
 		SIRconfigDir.set( filename )
+def getbatchDir():
+	filename = tkFileDialog.askdirectory()
+	if filename:
+		batchDir.set( filename )
 
 
 
@@ -320,7 +330,7 @@ def getRegFile():
 	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=45)
 	
 	for item in reglist:
-	    LB.insert(Tk.END, os.path.basename(item))
+		LB.insert(Tk.END, os.path.basename(item))
 	LB.grid(row=0, column=0, columnspan=3)
 
 	scrollbar.config(command=LB.yview)
@@ -353,13 +363,11 @@ def getRegFile():
 	top.resizable(0,0)
 
 
-
-
 def quit():
 	root.destroy()
 
-def runReconstruct(mode):
-	inputFile = rawFilePath.get()
+
+def runReconstruct(inputFile, mode):
 	if not os.path.exists(inputFile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
 		return 0
@@ -367,13 +375,10 @@ def runReconstruct(mode):
 		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
 		if response == "no":
 			return 0
-	if mode=='search':
-		if entriesValid():
-			uploadFile(inputFile, C.remotepath, 'search')
-	elif mode=='single':
-		if entriesValid():
-			uploadFile(inputFile, C.remotepath, 'single')
+	if entriesValid():
+		uploadFile(inputFile, C.remotepath, mode)
 	else:
+		print 'entries Valid failed....'
 		return 0
 
 
@@ -418,7 +423,7 @@ rawFilePath = Tk.StringVar()
 rawFileEntry = Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
 chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
-Tk.Label(top_frame, text='Channels:').grid(row=1, sticky='e')
+Tk.Label(top_frame, text='Use Channels:').grid(row=1, sticky='e')
 
 allwaves=C.valid['waves']
 channelSelectBoxes={}
@@ -431,10 +436,10 @@ for i in range(len(allwaves)):
 	channelSelectBoxes[allwaves[i]].grid(row=1, column=i+1, sticky='W')
 
 def naccheck(entry, var):
-    if var.get() == 0:
-        entry.configure(state='disabled')
-    else:
-        entry.configure(state='normal')
+	if var.get() == 0:
+		entry.configure(state='disabled')
+	else:
+		entry.configure(state='normal')
 
 Tk.Label(top_frame, text='Ref Channel:').grid(row=2, sticky='e')
 RefChannel = Tk.IntVar()
@@ -483,7 +488,7 @@ OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
 OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, columnspan=3, sticky='W')
 
-Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'search'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, rawFilePath.get(), 'optimal'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 forceChannels={}
 forceChannelsMenus={}
@@ -530,7 +535,7 @@ def getChannelOTF(var):
 	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
 	
 	for item in selectedlist:
-	    LB.insert(Tk.END, os.path.basename(item))
+		LB.insert(Tk.END, os.path.basename(item))
 	LB.grid(row=0, column=0, columnspan=3)
 
 	scrollbar.config(command=LB.yview)
@@ -549,7 +554,7 @@ def getChannelOTF(var):
 		LB.delete(0, 'end')
 		for item in otflist:
 			LB.insert(Tk.END, os.path.basename(item))
-    	fullist=1
+		fullist=1
 
 	def Cancel():
 		top.destroy()
@@ -588,8 +593,35 @@ for i in range(len(allwaves)):
 	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
 
 
-Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, rawFilePath.get(), 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
+
+# REGISTRATION TAB
+
+def getregCalImage():
+	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
+	if filename:
+		regCalImage.set( filename )
+
+
+def sendRegCal():
+	inputFile = regCalImage.get()
+	if not os.path.exists(inputFile):
+		tkMessageBox.showinfo("Input file Error", "Registration calibration image doesn't exist")
+		return 0
+	uploadFile(inputFile, C.remotepath, 'registerCal')
+
+
+Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
+regCalImage = Tk.StringVar()
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=35).grid(row=0, column=1, columnspan=5, sticky='W')
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Registration Image", command = getregCalImage).grid(row=0, column=3, ipady=3, ipadx=10, padx=2, stick='w')
+
+Tk.Label(registrationFrame, text='Iterations:').grid(row=1, sticky='e')
+calibrationIterations = Tk.IntVar()
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=35).grid(row=1, column=1, columnspan=2, sticky='W')
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Perform Registration Calibration", command = sendRegCal).grid(row=1, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+calibrationIterations.set(C.CalibrationIter)
 
 # CONFIG TAB
 
@@ -631,35 +663,39 @@ def testConnection():
 Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
 
 
+# BATCH TAB
 
-# REGISTRATION TAB
+Tk.Label(batchFrame, text='Directory:').grid(row=0, sticky='e')
+batchDir = Tk.StringVar()
+batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+batchDirButton = Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
-def getregCalImage():
-	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
-	if filename:
-		regCalImage.set( filename )
+def waitTillReady():
+	global serverBusy
+	if serverBusy:
+		root.after(1000, waitTillReady)
+
+def batchRecon(mode):
+	directory =  batchDir.get()
+	for root, subdirs, files in os.walk(directory):
+		for file in files:
+			fullpath=os.path.join(root,file)
+			if isRawSIMfile(fullpath):
+				setRawFile(fullpath)
+				try:
+					statusTxt.set( 'Batch recon on file: %s' % fullpath )
+					global serverBusy
+					serverBusy=1
+					runReconstruct(fullpath, mode)
+					root.after(1000, waitTillReady)
+				except Exception as e:
+					statusTxt.set( 'Skipping file %s due to error %s' % (fullpath,e) )
 
 
-def sendRegCal():
-	inputFile = regCalImage.get()
-	if not os.path.exists(inputFile):
-		tkMessageBox.showinfo("Input file Error", "Registration calibration image doesn't exist")
-		return 0
-	uploadFile(inputFile, C.remotepath, 'registerCal')
 
-
-Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
-regCalImage = Tk.StringVar()
-regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=35).grid(row=0, column=1, columnspan=5, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Registration Image", command = getregCalImage).grid(row=0, column=3, ipady=3, ipadx=10, padx=2, stick='w')
-
-Tk.Label(registrationFrame, text='Iterations:').grid(row=1, sticky='e')
-calibrationIterations = Tk.IntVar()
-calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=35).grid(row=1, column=1, columnspan=2, sticky='W')
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Perform Registration Calibration", command = sendRegCal).grid(row=1, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
-calibrationIterations.set(C.CalibrationIter)
-
-
+Tk.Button(batchFrame, text ="Batch Optimized Recon", command = partial(batchRecon, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text ="Batch Recon with Specified OTFs", command = partial(batchRecon, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(row=2, column=1, columnspan=6, sticky='e')
 
 # Help Frame
 
