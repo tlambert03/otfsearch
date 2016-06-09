@@ -232,11 +232,13 @@ def activateWaves(waves):
 	for w in waves:
 		channelSelectBoxes[w].config(state='normal')
 		channelSelectVars[w].set(1)
+		forceChannelsMenus[w].config(state='normal')
 
 def deactivateWaves(waves):
 	for w in waves:
 		channelSelectVars[w].set(0)
 		channelSelectBoxes[w].config(state='disabled')
+		forceChannelsMenus[w].config(state='disabled')
 
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
@@ -457,8 +459,8 @@ quitButton = Tk.Button(top_frame, text ="Quit", command = quit).grid(row=1, colu
 
 # OTF search tab widgets
 
-leftLabels = ['Max OTF age(day):', 'Max number OTFs:', 'Crop Size (px):', 'Oil Min RI:', 
-			'Oil Max RI:']
+leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):', 'Min Oil RI:', 
+			'Max Oil RI:']
 for i in range(len(leftLabels)):
 	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i, sticky='E')
 
@@ -485,12 +487,16 @@ OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1
 Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'search'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 forceChannels={}
+forceChannelsMenus={}
 Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings", font=('Arial',12, 'bold')).grid(row=0, column=5, columnspan=3, sticky='w', padx=(20, 0))
 for i in range(len(allwaves)):
 	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i+1, column=5, sticky='E', padx=(40, 0))
 	forceChannels[allwaves[i]] = Tk.IntVar()
-	Tk.OptionMenu(otfsearchFrame, forceChannels[allwaves[i]], *allwaves).grid(row=i+1, column=6,sticky='w')
 	forceChannels[allwaves[i]].set(allwaves[i])
+	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame, forceChannels[allwaves[i]], *allwaves)
+	forceChannelsMenus[allwaves[i]].config(state='disabled')
+	forceChannelsMenus[allwaves[i]].grid(row=i+1, column=6,sticky='w')
+	
 
 # SINGLE RECON TAB
 
