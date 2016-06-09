@@ -140,8 +140,12 @@ def isRawSIMfile(fname):
 		return 0
 	for q in ['SIR','PROC']:
 		if q in os.path.basename(fname): return 0
-	reader = Mrc.open(fname)
-	if reader.hdr.Num[2]%15:
+	header = Mrc.open(fname).hdr
+	numWaves = header.NumWaves
+	numTimes = header.NumTimes
+	imSize = header.Num
+	numplanes = imSize[2]/(numTimes*numWaves)
+	if numplanes%15:
 		return 0
 	return 1
 
@@ -176,12 +180,18 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, con
 		else:
 			configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
 
+
 	commandArray=[config.reconApp,inFile,outFile,otfFile,'-c',configFile]
 	if wiener:
 		commandArray.extend(['--wiener',str(wiener)])
+
+	
 	process = subprocess.Popen(commandArray, stdout=subprocess.PIPE)
 	output = process.communicate()[0]
-	return output
+	if 'CUFFT failed to allocate GPU or CPU memory' in output:
+		raise MemoryError('CUFFT failed to allocate GPU or CPU memory: File size too large??')
+	elif 'done' in output.split('\n')[-2]:
+		return output
 
 
 def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=None,
@@ -222,13 +232,23 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 
 		namesplit = os.path.splitext(file)
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
-		reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, configDir=configDir), 
-							'wave' : wave,
-							'otf'  : otf,
-							'file' : file,
-							'procFile' : procFile
-						})
 		filesToMerge.append(procFile)
+		try:
+			reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, configDir=configDir), 
+								'wave' : wave,
+								'otf'  : otf,
+								'file' : file,
+								'procFile' : procFile
+							})
+		except Exception as e:
+			print "Cannot reconstruct file %s due to error %s" % (inFile,e)
+			#cleanup files
+			for f in splitfiles: 
+				if not f == inFile: os.remove(f) 
+			for f in filesToMerge: os.remove(f)
+			return 0
+
+		
 
 	if writeLog:
 		if not logFile: 
@@ -326,7 +346,7 @@ def getRIH(im):
 		return posNegRatio
 	else:
 		print "! histogram minimum above background. unable to calculate +ve/-ve intensity ratio"
-		return 0
+		return 0.0
 
 
 def getSAM(im):
@@ -584,7 +604,7 @@ def matlabReg(fname,regFile,refChannel,doMax):
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
-							maxNum=config.maxNum, writeFile=config.writeFile, OTFdir=config.OTFdir, 
+							maxNum=config.maxNum, writeCSV=config.writeCSV, OTFdir=config.OTFdir, 
 							reconWaves=None, forceChannels=None, regFile=config.regFile, 
 							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
@@ -612,7 +632,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 
 
 	scoreFile=None
-	if writeFile: # write the file to csv
+	if writeCSV: # write the file to csv
 		import pandas as pd
 		scoreDF = pd.DataFrame(allScores)
 		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
@@ -630,14 +650,20 @@ def batchRecon(directory, mode, **kwargs):
 			if isRawSIMfile(fullpath):
 				if mode=='optimal':
 					print "Doing optimal reconstruction on file: %s" % file
-					makeBestReconstruction(fullpath, **kwargs)
+					try:
+						makeBestReconstruction(fullpath, **kwargs)
+					except Exception as e:
+						print 'Skipping file %s due to error %s' % (fullpath,e)
 				elif mode=='single':
 					print "Doing single reconstruction on file: %s" % file
-					reconstructMulti(fullpath, **kwargs)
+					try:
+						reconstructMulti(fullpath, **kwargs)
+					except Exception as e:
+						print 'Skipping file %s due to error %s' % (fullpath,e)
 				else:
 					raise ValueError('Mode %s in batchRecon function was not understood' % mode)
 					return 0
-				return 1
+	return 1
 
 
 
