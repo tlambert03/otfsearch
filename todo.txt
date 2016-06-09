@@ -1,0 +1,1 @@
+allow max projection without registration

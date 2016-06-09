@@ -147,9 +147,9 @@ def makeRegCalCommand(remoteFile):
 def makeSpecifiedOTFcommand(remoteFile):
 	command = ['python', C.remoteSpecificScript, remoteFile, 
 				'--regfile', RegFile.get(), '-r', RefChannel.get() ]
-	if wiener.get()!='None' and wiener.get():  
+	if wiener.get().strip():  
 		command.extend(['-w', wiener.get()])
-	if timepoints.get()!='None' and timepoints.get():  
+	if timepoints.get().strip():  
 		command.extend(['-t',timepoints.get()])
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
 	for c in selectedChannels:
@@ -162,13 +162,20 @@ def makeOTFsearchCommand(remoteFile):
 	command = ['python', C.remoteOptScript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
 				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
 				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
-
-	if maxOTFage.get()!='None' and maxOTFage.get()!='': 
+	if maxOTFage.get().strip(): 
 		command.extend(['-a', maxOTFage.get()])
-	if maxOTFnum.get()!='None' and maxOTFnum.get()!='':  
+	if maxOTFnum.get().strip():  
 		command.extend(['-n', maxOTFnum.get()])
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
+	if selectedChannels:
+		command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
+	#if not all([k==v.get() for k,v in forceChannels.items() if k in selectedChannels]):
+	# if any of the channel:otf pairings have been changed
+	for c in selectedChannels:
+		# build the "force channels" commands
+		if not c==forceChannels[c].get(): 
+			command.extend(['-f', "=".join([str(c),str(forceChannels[c].get())])])
+	print command
 	return command
 
 
@@ -263,18 +270,20 @@ def entriesValid():
 		tkMessageBox.showinfo("Input Error", "Cropsize must be a power of 2 <= 512")
 		return 0
 	waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
-	if not RefChannel.get().isdigit() or not int(RefChannel.get()) in waves:
-		tkMessageBox.showinfo("Input Error", "Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
-		return 0
+	if doReg.get():
+		if not RefChannel.get().isdigit() or not int(RefChannel.get()) in waves:
+			tkMessageBox.showinfo("Input Error", "Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
+			return 0
+		if not RegFile.get().strip():
+			tkMessageBox.showinfo("Registration File Error", "Please select a registration file in the config tab")
+			return 0
 	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
 	if len(selectedChannels)==0:
 		tkMessageBox.showinfo("Input Error", "You must select at least one channel to reconstruct:")
 		return 0
 
 	#OTFdir.get()
-	#RegFile.get()
 	#doMax.get()
-	#doReg.get()
 	return 1
 
 
@@ -346,10 +355,9 @@ def getRegFile():
 
 
 def quit():
-	#textArea.insert(Tk.END, 'response')
-	global sentinel 
-	sentinel=['finished']
-	root.destroy()
+
+	print " ".join([str(s) for s in makeOTFsearchCommand('test')])
+	#root.destroy()
 
 def runReconstruct(mode):
 	inputFile = rawFilePath.get()
@@ -423,21 +431,29 @@ for i in range(len(allwaves)):
 	channelSelectBoxes[allwaves[i]].config(variable=channelSelectVars[allwaves[i]], text=str(allwaves[i]), state='disabled')
 	channelSelectBoxes[allwaves[i]].grid(row=1, column=i+1, sticky='W')
 
+def naccheck(entry, var):
+    if var.get() == 0:
+        entry.configure(state='disabled')
+    else:
+        entry.configure(state='normal')
+
+Tk.Label(top_frame, text='Ref Channel:').grid(row=2, sticky='e')
+RefChannel = Tk.IntVar()
+RefChannel.set(C.refChannel)
+RefChannelEntry = Tk.OptionMenu(top_frame, RefChannel, *allwaves)
+if not C.doReg: RefChannelEntry.config(state='disabled')
+RefChannelEntry.grid(row=2, column=1, columnspan=1, sticky='W')
+
 doReg = Tk.IntVar()
 doReg.set(C.doReg)
-doRegButton = Tk.Checkbutton(top_frame, variable=doReg, text='Do registration').grid(row=2, column=1, columnspan=3, sticky='W')
+doRegButton = Tk.Checkbutton(top_frame, variable=doReg, text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v)).grid(row=2, column=2, columnspan=2, sticky='W')
 
 doMax = Tk.IntVar()
 doMax.set(C.doMax)
-doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(row=2, column=4, columnspan=3, sticky='W')
+doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(row=2, column=4, columnspan=2, sticky='W')
 
-Tk.Label(top_frame, text='Ref Channel:').grid(row=3, sticky='e')
-RefChannel = Tk.StringVar()
-RefChannel.set(C.refChannel)
-RefChannelEntry = Tk.Entry(top_frame, textvariable=RefChannel).grid(row=3, column=1, columnspan=3, sticky='W')
-Tk.Label(top_frame, text="(435,477,528,541,608, or 683)").grid(row=3, column=4, columnspan=3,  sticky='W')
 
-quitButton = Tk.Button(top_frame, text ="Quit", command = quit).grid(row=2, column=7, rowspan=2, ipady=10, ipadx=33)
+quitButton = Tk.Button(top_frame, text ="Quit", command = quit).grid(row=1, column=7, rowspan=2, ipady=10, ipadx=33)
 
 
 
@@ -470,14 +486,13 @@ OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1
 
 Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'search'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
-
 forceChannels={}
 Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings", font=('Arial',12, 'bold')).grid(row=0, column=5, columnspan=3, sticky='w', padx=(20, 0))
 for i in range(len(allwaves)):
-	Tk.Label(otfsearchFrame, text="%snm Channel OTF:" % allwaves[i]).grid(row=i+1, column=5, sticky='E', padx=(40, 0))
-	forceChannels[i] = Tk.IntVar()
-	Tk.OptionMenu(otfsearchFrame, forceChannels[i], *allwaves).grid(row=i+1, column=6,sticky='w')
-	forceChannels[i].set(allwaves[i])
+	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i+1, column=5, sticky='E', padx=(40, 0))
+	forceChannels[allwaves[i]] = Tk.IntVar()
+	Tk.OptionMenu(otfsearchFrame, forceChannels[allwaves[i]], *allwaves).grid(row=i+1, column=6,sticky='w')
+	forceChannels[allwaves[i]].set(allwaves[i])
 
 # SINGLE RECON TAB
 
