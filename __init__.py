@@ -94,6 +94,19 @@ def mergeChannels(fileList, outFile=None):
 	callPriism(command)
 	return outFile
 
+def maxprj(fname, outFile=None):
+	if outFile is None:
+		namesplit = os.path.splitext(fname)
+		outFile=namesplit[0]+"_MAX"+namesplit[1]
+	header = Mrc.open(fname).hdr
+	numWaves = header.NumWaves
+	numTimes = header.NumTimes
+	imSize = header.Num
+	numplanes = imSize[2]/(numTimes*numWaves)
+	print " ".join([ 'RunProj', "'%s'"%fname, "'%s'"%outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
+	callPriism([ 'RunProj', "'%s'"%fname, "'%s'"%outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
+	return outFile
+
 
 def cropTime(fileIn, fileOut=None, start=1, end=1, step=1):
 	if fileOut is None:
