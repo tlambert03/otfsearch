@@ -664,14 +664,13 @@ calibrationIterations.set(C.CalibrationIter)
 # Help Frame
 
 
-helpText = ScrolledText(helpFrame)
+helpText = ScrolledText(helpFrame, wrap='word')
 helpText.pack(fill='both')
 
 helpText.tag_configure("heading", font=('Helvetica',12,'bold'))
 helpText.tag_configure("paragraph", font=('Helvetica',10,'normal'))
 helpText.tag_configure("code", font=('Monaco',10,'bold'))
 helpText.tag_configure("italics", font=('Helvetica',12,'italic'))
-helpText.tag_configure("small", font=('Helvetica',8))
 
 helpText.insert('insert','Input File\n', 'heading')
 helpText.insert('insert','Select a raw SIM .dv file to process and choose the ', 'paragraph')
@@ -692,7 +691,8 @@ helpText.insert('insert','Configuration\n', 'heading')
 helpText.insert('insert','The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
 helpText.insert('insert','\n')
 helpText.insert('insert',"If you are getting bugs or unexpected results, don't hesistate to ask for help!\n", 'italics')
-helpText.insert('insert',"Created by Talley Lambert, 2016", 'small')
+helpText.insert('insert','\n')
+helpText.insert('insert',"Created by Talley Lambert, (c) 2016", 'paragraph')
 
 helpText.config(height=17, state='disabled')
 

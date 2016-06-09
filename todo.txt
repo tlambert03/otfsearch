@@ -1,6 +1,5 @@
 add batch processing
 allow single image registration option without reconstruction
-pull things like linespacing and angle out of the logfile and add to scoredict
 
 
 change cropsize box in gui to option box? -> make it a class
@@ -10,3 +9,5 @@ add more help
 OTF and SIR config directories should poll the server, not local
 OTF names in specific OTF tab might not need full path
 calculate more things for score dict...
+make timepoints a string that can accept start:stop:step
+add background to single reconstruct
