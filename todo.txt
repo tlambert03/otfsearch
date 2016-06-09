@@ -1,9 +1,12 @@
-allow max projection without registration
-change cropsize box in gui to option box?
 add batch processing
-add options to channel registration calibration command
 allow single image registration option without reconstruction
+pull things like linespacing and angle out of the logfile and add to scoredict
+
+
+change cropsize box in gui to option box? -> make it a class
+add options to channel registration calibration command
 rethink where stuff goes on configuration tab and others
-more help
+add more help
 OTF and SIR config directories should poll the server, not local
 OTF names in specific OTF tab might not need full path
+calculate more things for score dict...

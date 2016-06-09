@@ -502,12 +502,18 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		OTFlist = getMatchingOTFs(otfDict,otfWave,oilMin,oilMax, maxAge=maxAge, maxNum=maxNum)
 
 		for otf in OTFlist:
+
+			# this is where we parse the reconstruction log and mine for import data
 			procFile=namesplit[0] + "_" + otf['code'] + "_PROC" + namesplit[1]
 			reconLog = reconstruct(file, otf['path'], procFile)
 			combinedModamps = [float(line.split('amp=')[1].split(',')[0]) for line 
 							 in reconLog.split('\n') if 'Combined modamp' in line]
 			correlationCoeffs = [float(line.split(": ")[1]) for line in reconLog.split('\n') 
 								if 'Correlation coefficient' in line]
+			spacings = [float(line.split(" ")[0]) for line in reconLog.split('spacing=')[1:]]
+			angles = [float(line.split(",")[0]) for line in reconLog.split('Optimum k0 angle=')[1:]]
+			lengths = [float(line.split(",")[0]) for line in reconLog.split('length=')[1:]]
+			fitDeltas = [float(line.split(" ")[0]) for line in reconLog.split('best fit for k0 is ')[1:]]
 			warnings = [line for line in reconLog.split('\n') if 'WARNING' in line]
 			indat = Mrc.bindFile(procFile)
 			imRIH = getRIH(indat)
@@ -533,7 +539,11 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 						"avgmodamp" : np.average(combinedModamps),
 						"avgmodamp1" : np.average(combinedModamps[1:6:2]),
 						"avgmodamp2" : np.average(combinedModamps[0:6:2]),
-						"wiener"  : reconLog.split('wiener=')[1][:5]
+						"wiener"  : reconLog.split('wiener=')[1][:5],
+						"spacings" : spacings,
+						"angles" : angles,
+						"lengths" : lengths,
+						"fitDeltas" : fitDeltas
 			}
 			scoreDict['score'] = scoreDict['RIH'] * scoreDict['avgmodamp2']
 
