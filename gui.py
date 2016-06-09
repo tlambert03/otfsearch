@@ -355,9 +355,7 @@ def getRegFile():
 
 
 def quit():
-
-	print " ".join([str(s) for s in makeOTFsearchCommand('test')])
-	#root.destroy()
+	root.destroy()
 
 def runReconstruct(mode):
 	inputFile = rawFilePath.get()
