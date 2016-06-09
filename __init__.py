@@ -625,13 +625,14 @@ def batchRecon(directory, mode, **kwargs):
 
 	for root, subdirs, files in os.walk(directory):
 		for file in files:
-			if isRawSIMfile(os.path.join(root,file)):
+			fullpath=os.path.join(root,file)
+			if isRawSIMfile(fullpath):
 				if mode=='optimal':
 					print "Doing optimal reconstruction on file: %s" % file
-					makeBestReconstruction(file, **kwargs)
+					makeBestReconstruction(fullpath, **kwargs)
 				elif mode=='single':
 					print "Doing single reconstruction on file: %s" % file
-					reconstructMulti(file, **kwargs)
+					reconstructMulti(fullpath, **kwargs)
 				else:
 					raise ValueError('Mode %s in batchRecon function was not understood' % mode)
 					return 0
