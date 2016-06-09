@@ -137,13 +137,11 @@ def crop(fileIn, cropsize, fileOut=None):
 
 def isRawSIMfile(fname):
 	if os.path.splitext(fname)[1] != ".dv":
-		print "not a raw SIM file"
 		return 0
 	for q in ['SIR','PROC']:
 		if q in os.path.basename(fname): return 0
 	reader = Mrc.open(fname)
 	if reader.hdr.Num[2]%15:
-		print "not a raw SIM file"
 		return 0
 	return 1
 
@@ -625,18 +623,19 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 
 def batchRecon(directory, mode, **kwargs):
 
-	for root, subdir, file in os.walk(directory):
-		if isRawSIMfile(file):
-			if mode=='optimal':
-				print "Doing optimal reconstruction on file: %s" % file
-				makeBestReconstruction(file, **kwargs)
-			elif mode=='single':
-				print "Doing single reconstruction on file: %s" % file
-				reconstructMulti(file, **kwargs)
-			else:
-				raise ValueError('Mode %s in batchRecon function was not understood' % mode)
-				return 0
-			return 1
+	for root, subdirs, files in os.walk(directory):
+		for file in files:
+			if isRawSIMfile(os.path.join(root,file)):
+				if mode=='optimal':
+					print "Doing optimal reconstruction on file: %s" % file
+					makeBestReconstruction(file, **kwargs)
+				elif mode=='single':
+					print "Doing single reconstruction on file: %s" % file
+					reconstructMulti(file, **kwargs)
+				else:
+					raise ValueError('Mode %s in batchRecon function was not understood' % mode)
+					return 0
+				return 1
 
 
 
