@@ -175,7 +175,6 @@ def makeOTFsearchCommand(remoteFile):
 		# build the "force channels" commands
 		if not c==forceChannels[c].get(): 
 			command.extend(['-f', "=".join([str(c),str(forceChannels[c].get())])])
-	print command
 	return command
 
 
