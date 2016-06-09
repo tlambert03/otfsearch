@@ -536,9 +536,9 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 	results={}
 	if channels is None:
-		channels = list(set([s['wavelength'] for s in scoreDict]))
+		channels = list(set([s['imChannel'] for s in scoreDict]))
 	for c in channels:
-		sortedList = sorted([s for s in scoreDict if s['wavelength']==c], key=lambda x: x['score'], reverse=True)
+		sortedList = sorted([s for s in scoreDict if s['imChannel']==c], key=lambda x: x['score'], reverse=True)
 		results[str(c)] = sortedList[0]['OTFpath']
 		if verbose: 
 			print "Channel %s:" % c

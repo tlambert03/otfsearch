@@ -271,7 +271,7 @@ def entriesValid():
 		return 0
 	waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 	if doReg.get():
-		if not RefChannel.get().isdigit() or not int(RefChannel.get()) in waves:
+		if not int(RefChannel.get()) in waves:
 			tkMessageBox.showinfo("Input Error", "Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
 			return 0
 		if not RegFile.get().strip():
