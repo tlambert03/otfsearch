@@ -103,8 +103,8 @@ def maxprj(fname, outFile=None):
 	numTimes = header.NumTimes
 	imSize = header.Num
 	numplanes = imSize[2]/(numTimes*numWaves)
-	print " ".join([ 'RunProj', "'%s'"%fname, "'%s'"%outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
-	callPriism([ 'RunProj', "'%s'"%fname, "'%s'"%outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
+	print " ".join([ 'RunProj', fname, outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
+	callPriism([ 'RunProj', fname, outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
 	return outFile
 
 
