@@ -683,10 +683,8 @@ def batchRecon(mode):
 				batchlist.append(fullpath)
 
 	def callback(mode):
-		print "callback"
 		global serverBusy
 		if serverBusy:
-			print("server busy, wait")
 			root.after(1000, callback, mode)
 		else:
 			serverBusy=1

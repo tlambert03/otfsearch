@@ -1,6 +1,8 @@
 add batch processing
 allow single image registration option without reconstruction
 add more raw data indices to score, such as snr? max/min/mean?
+add cancel button to stop long processes gracefully
+
 
 give more feedback on raw data to the user
 	saturation check
