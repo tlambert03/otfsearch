@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestReconstruction(args['inputFile'].name, 
 		cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], maxAge=args['age'], maxNum=args['num'], 
 		OTFdir=args['otfdir'], reconWaves=args['channels'], forceChannels=forceOTFdict, regFile=args['regfile'], 
-		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeFile=args['writefile'], cleanup=True, verbose=True,)
+		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeCSV=args['writefile'], cleanup=True, verbose=True,)
 
 	# THIS IS NOT JUST FOR READOUT
 	# these lines  trigger the gui.py program set the specific OTF window
