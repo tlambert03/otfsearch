@@ -137,6 +137,8 @@ def updateTransferStatus(tup):
 		global serverBusy
 		serverBusy=0
 		pass
+	elif sentinel[0] is 'canceled':
+		statusTxt.set("Process canceled")
 	else:
 		root.after(400, updateTransferStatus, tup)
 
@@ -193,7 +195,12 @@ def sendRemoteCommand(command):
 				response = channel.recv(2048)
 			else:
 				response=''
-
+			global sentinel
+			if sentinel[0]=='canceled':
+				statusTxt.set("Process canceled!")
+				ssh.close()
+				sentinel = [0]
+				return 0
 			if response!='':
 				statusTxt.set("Receiving feedback from server ... see text area above for details.")
 				r=[r for r in response.splitlines() if r and r!='']
@@ -221,7 +228,6 @@ def sendRemoteCommand(command):
 				if 'OTFs' not in statusTxt.get():
 					statusTxt.set("Done")
 				ssh.close()
-
 			elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 				statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
 				ssh.close()
@@ -246,6 +252,7 @@ def deactivateWaves(waves):
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
 	setRawFile(filename)
+
 
 def setRawFile(filename):
 	if filename:
@@ -368,8 +375,15 @@ def getRegFile():
 def quit():
 	root.destroy()
 
+def cancel():
+	global serverBusy
+	global sentinel
+	sentinel = ['canceled']
+	serverBusy=0
 
-def runReconstruct(inputFile, mode):
+
+def runReconstruct(mode):
+	inputFile = rawFilePath.get()
 	if not os.path.exists(inputFile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
 		return 0
@@ -423,7 +437,7 @@ statusFrame.grid(row = 3, sticky="ew")
 Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
 rawFilePath = Tk.StringVar()
 rawFileEntry = Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
-chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
+chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile, width=9).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
 Tk.Label(top_frame, text='Use Channels:').grid(row=1, sticky='e')
 
@@ -459,8 +473,9 @@ doMax.set(C.doMax)
 doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(row=2, column=4, columnspan=2, sticky='W')
 
 
-quitButton = Tk.Button(top_frame, text ="Quit", command = quit).grid(row=1, column=7, rowspan=2, ipady=10, ipadx=33)
+quitButton = Tk.Button(top_frame, text ="Quit", command = quit, width=9).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
 
+quitButton = Tk.Button(top_frame, text ="Cancel", command = cancel, width=9).grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
 
 
 # OTF search tab widgets
@@ -490,7 +505,8 @@ OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
 OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, columnspan=3, sticky='W')
 
-Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, rawFilePath.get(), 'optimal'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+
+Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'optimal'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 forceChannels={}
 forceChannelsMenus={}
@@ -595,7 +611,7 @@ for i in range(len(allwaves)):
 	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
 
 
-Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, rawFilePath.get(), 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 
 # REGISTRATION TAB
@@ -685,14 +701,14 @@ def batchRecon(mode):
 	def callback(mode):
 		global serverBusy
 		if serverBusy:
-			root.after(1000, callback, mode)
+			root.after(600, callback, mode)
 		else:
 			serverBusy=1
 			if len(batchlist):
 				item = batchlist.pop(0)
 				setRawFile(item)
 				print("sending reconstruction on %s" %item)
-				runReconstruct(item, mode)
+				runReconstruct(mode)
 				callback(mode)
 			else:
 				pass
