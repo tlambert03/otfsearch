@@ -29,7 +29,7 @@ if __name__ == '__main__':
 	parser.add_argument('-r','--refchannel', help='reference channel for channel registration', default=config.refChannel, type=goodChannel)
 	parser.add_argument('-x','--domax', help='perform max projection after registration', type=bool, default=config.doMax)
 	parser.add_argument('-g','--doreg', help='perform channel registration', default=config.doReg)
-	parser.add_argument('-w','--writefile', help='write score results to csv file', default=config.writeFile, action='store_true')
+	parser.add_argument('-w','--writefile', help='write score results to csv file', default=config.writeCSV, action='store_true')
 	parser.add_argument('-q','--quiet', help='suppress feedback during reconstructions', default=False, action='store_true')
 	parser.add_argument('--version', action='version', version='%(prog)s 0.1')
 

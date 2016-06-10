@@ -134,6 +134,8 @@ def updateTransferStatus(tup):
 		pass
 	elif sentinel[0] is 'getDone':
 		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
+		global serverBusy
+		serverBusy=0
 		pass
 	else:
 		root.after(400, updateTransferStatus, tup)
@@ -670,26 +672,33 @@ batchDir = Tk.StringVar()
 batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
 batchDirButton = Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
-def waitTillReady():
-	global serverBusy
-	if serverBusy:
-		root.after(1000, waitTillReady)
 
 def batchRecon(mode):
+	batchlist=[]
 	directory =  batchDir.get()
-	for root, subdirs, files in os.walk(directory):
-		for file in files:
-			fullpath=os.path.join(root,file)
+	for R, S, F in os.walk(directory):
+		for file in F:
+			fullpath=os.path.join(R,file)
 			if isRawSIMfile(fullpath):
-				setRawFile(fullpath)
-				try:
-					statusTxt.set( 'Batch recon on file: %s' % fullpath )
-					global serverBusy
-					serverBusy=1
-					runReconstruct(fullpath, mode)
-					root.after(1000, waitTillReady)
-				except Exception as e:
-					statusTxt.set( 'Skipping file %s due to error %s' % (fullpath,e) )
+				batchlist.append(fullpath)
+
+	def callback(mode):
+		print "callback"
+		global serverBusy
+		if serverBusy:
+			print("server busy, wait")
+			root.after(1000, callback, mode)
+		else:
+			serverBusy=1
+			if len(batchlist):
+				item = batchlist.pop(0)
+				setRawFile(item)
+				print("sending reconstruction on %s" %item)
+				runReconstruct(item, mode)
+				callback(mode)
+			else:
+				pass
+	callback(mode)
 
 
 

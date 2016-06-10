@@ -78,6 +78,9 @@ else:
 # perform reconstruction
 reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=args['channels'], wiener=args['wiener'], outFile=args['outputFile'], configDir=args['configDir'])
 
+registeredFile=None 
+maxProj=None
+
 if args['doreg'] and numWaves>1: # perform channel registration
 	#print "perfoming channel registration in matlab..."
 	registeredFile, maxProj = matlabReg(reconstructed,args['regfile'],args['refchannel'],args['domax']) # will be a list
