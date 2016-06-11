@@ -505,7 +505,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		TIV,channelDecay,angleDiffs = CIP(im)
 
 		fileDict={  "input" : inputFile,
-					"date" : datetime.fromtimestamp(os.path.getctime(inputFile)),
+					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
 					"TIV" : TIV,
 					"channelDecay" : channelDecay,						
 					"angleDiffs" : angleDiffs,

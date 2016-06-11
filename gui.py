@@ -64,7 +64,7 @@ def uploadFile(inputFile, remotepath, mode):
 	the mode command is passed to the updateTranserStatus function
 	to determine which command gets sent to the server after upload
 	'''
-	print 'uploading file: %s' % inputFile
+	print 'Uploading: %s' % inputFile
 	ssh = connectToServer()
 	if ssh:
 		thr = threading.Thread(target=putFile, args=(inputFile, remotepath, ssh))
@@ -241,13 +241,11 @@ def activateWaves(waves):
 	for w in waves:
 		channelSelectBoxes[w].config(state='normal')
 		channelSelectVars[w].set(1)
-		forceChannelsMenus[w].config(state='normal')
 
 def deactivateWaves(waves):
 	for w in waves:
 		channelSelectVars[w].set(0)
 		channelSelectBoxes[w].config(state='disabled')
-		forceChannelsMenus[w].config(state='disabled')
 
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
@@ -516,7 +514,6 @@ for i in range(len(allwaves)):
 	forceChannels[allwaves[i]] = Tk.IntVar()
 	forceChannels[allwaves[i]].set(allwaves[i])
 	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame, forceChannels[allwaves[i]], *allwaves)
-	forceChannelsMenus[allwaves[i]].config(state='disabled')
 	forceChannelsMenus[allwaves[i]].grid(row=i+1, column=6,sticky='w')
 	
 
@@ -707,10 +704,12 @@ def batchRecon(mode):
 			if len(batchlist):
 				item = batchlist.pop(0)
 				setRawFile(item)
-				print("sending reconstruction on %s" %item)
+				print("Batch reconstruction on: %s" %item)
 				runReconstruct(mode)
 				callback(mode)
 			else:
+				print("Batch reconstruction finished")
+				statusTxt.set("Batch reconstruction finished")
 				pass
 	callback(mode)
 
