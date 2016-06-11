@@ -181,7 +181,7 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, con
 			configFile = os.path.join(config.SIconfigDir,str(wave)+'config')
 
 	if not os.path.exists(configFile):
-		raise OSError(2, 'Cannot find config file: %s' % configFile)
+		raise OSError(2, 'Cannot find SIrecon config file: %s' % configFile)
 
 	commandArray=[config.reconApp,inFile,outFile,otfFile,'-c',configFile]
 	if wiener:
