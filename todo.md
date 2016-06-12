@@ -1,4 +1,5 @@
 <!-- features to add -->
+save results to master CSV file
 add opt-out button for scoring
 allow single image registration option without reconstruction
 allow to create batch job for just image registration
@@ -25,5 +26,5 @@ consider using a smart regisatration file choice
 	create dictionary of regisration files that knows waves, daves, et...
 
 <!-- bugs -->
-cancel button should stop batch jobs
 OTF and SIR config directories should poll the server, not local
+after failed batch process (due to bad ref channel), couldn't click batch again

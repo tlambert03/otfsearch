@@ -14,6 +14,7 @@ import threading
 from functools import partial
 from ast import literal_eval
 import socket
+from datetime import datetime
 
 try:
 	import paramiko
@@ -162,10 +163,10 @@ def update_progress(tup):
 	elif sentinel[0] is 'getDone':
 		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
 		global serverBusy
-		serverBusy=0
+		serverBusy = 0
 		pass
 	elif sentinel[0] is 'canceled':
-		statusTxt.set("Process canceled")
+		pass
 	else:
 		root.after(400, update_progress, tup)
 
@@ -241,20 +242,20 @@ def send_command(command):
 				textArea.insert(Tk.END, "\n")
 				textArea.yview(Tk.END)
 				if 'Best OTFs:' in r:
-					otfDict=r[r.index('Best OTFs:')+1]
-					if not isinstance(otfDict,dict):
-						otfDict = literal_eval(otfDict)
-					if isinstance(otfDict,dict):
-						for k,v in otfDict.items():
+					otfdict = r[r.index('Best OTFs:') + 1]
+					if not isinstance(otfdict, dict):
+						otfdict = literal_eval(otfdict)
+					if isinstance(otfdict, dict):
+						for k, v in otfdict.items():
 							channelOTFPaths[int(k)].set(v)
 							statusTxt.set("Done.  Best OTFs added to 'Specific OTFs' tab")
 				if 'Files Ready:' in r:
-					i=r.index('Files Ready:')+1
+					i = r.index('Files Ready:') + 1
 					statusTxt.set("Downloading files from server... ")
 					filelist = []
 					while not r[i].startswith('Done'):
 						filelist.append(r[i].split(": ")[1])
-						i+=1
+						i += 1
 					download(filelist, ssh)
 					return
 			if response.endswith(':~$ '):
@@ -275,10 +276,12 @@ def activateWaves(waves):
 		channelSelectBoxes[w].config(state='normal')
 		channelSelectVars[w].set(1)
 
+
 def deactivateWaves(waves):
 	for w in waves:
 		channelSelectVars[w].set(0)
 		channelSelectBoxes[w].config(state='disabled')
+
 
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
@@ -343,15 +346,19 @@ def entriesValid():
 def getOTFdir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		OTFdir.set(filename )
+		OTFdir.set(filename)
+
+
 def getSIRconfigDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		SIRconfigDir.set(filename )
+		SIRconfigDir.set(filename)
+
+
 def getbatchDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		batchDir.set(filename )
+		batchDir.set(filename)
 
 
 def getRegFile():
@@ -378,24 +385,24 @@ def getRegFile():
 
 		item = [reglist[int(item)] for item in items][0]
 
-		if item: 
-			RegFile.set(os.path.join(C.regFileDir,item))
+		if item:
+			RegFile.set(os.path.join(C.regFileDir, item))
 		top.destroy()
 
-	selectButton = Tk.Button(top, text="Select",command=Select, pady=6, padx=10)
+	selectButton = Tk.Button(top, text="Select", command=Select, pady=6, padx=10)
 	selectButton.grid(row=1, column=0)
 
-	cancelButton = Tk.Button(top, text="Cancel",command=lambda : top.destroy() , pady=6, padx=10)
+	cancelButton = Tk.Button(top, text="Cancel", command=lambda: top.destroy(), pady=6, padx=10)
 	cancelButton.grid(row=1, column=1)
 
 	top.update_idletasks()
 	w = top.winfo_screenwidth()
 	h = top.winfo_screenheight()
 	size = tuple(int(_) for _ in top.geometry().split('+')[0].split('x'))
-	x = w/2 - size[0]/2
-	y = h/2 - size[1]/1.3
+	x = w / 2 - size[0] / 2
+	y = h / 2 - size[1] / 1.3
 	top.geometry("%dx%d+%d+%d" % (size + (x, y)))
-	top.resizable(0,0)
+	top.resizable(0, 0)
 
 
 def quit():
@@ -426,11 +433,9 @@ def runReconstruct(mode):
 		print 'entries Valid failed....'
 		return 0
 
-
-
 root = Tk.Tk()
-root.title('CBMF SIM Reconstruction Tool')
-#center the window on screen with specified dimensions
+root.title('CBMF SIM Reconstruction Tool v.%s' % datetime.fromtimestamp(
+	os.path.getctime(os.path.realpath(__file__))).strftime('%y-%m-%d %H:%M'))
 
 top_frame = Tk.Frame(root)
 
@@ -749,22 +754,22 @@ def dobatch(mode):
 	def callback(mode):
 		global sentinel
 		global serverBusy
-		if sentinel == ['canceled']:
-			pass
-		elif serverBusy:
+		if serverBusy:
 			root.after(600, callback, mode)
 		else:
 			serverBusy = 1
-			if len(batchlist):
+			if len(batchlist) == 0:
+				print("Batch reconstruction finished")
+				statusTxt.set("Batch reconstruction finished")
+				pass
+			elif sentinel == ['canceled']:
+				pass
+			else:
 				item = batchlist.pop(0)
 				setRawFile(item)
 				print("Batch reconstruction on: %s" % item)
 				runReconstruct(mode)
 				callback(mode)
-			else:
-				print("Batch reconstruction finished")
-				statusTxt.set("Batch reconstruction finished")
-				pass
 	callback(mode)
 
 
