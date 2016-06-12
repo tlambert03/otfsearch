@@ -27,4 +27,4 @@ consider using a smart regisatration file choice
 
 <!-- bugs -->
 OTF and SIR config directories should poll the server, not local
-after failed batch process (due to bad ref channel), couldn't click batch again
+if doReg: make sure that registration file has the appropriate channels

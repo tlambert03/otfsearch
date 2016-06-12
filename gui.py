@@ -301,46 +301,35 @@ def setRawFile(filename):
 			statusTxt.set('Unable to read file... is it a .dv file?')
 
 
-def entriesValid():
+def entriesValid(silent=False):
+	errors=[]
 	if maxOTFnum.get():
 		if not maxOTFnum.get().isdigit():
-			tkMessageBox.showinfo("Input Error",
-				"Max number of OTFs must be a positive integer (or blank)")
-			return 0
+			errors.append(["Optimized Reconstruction Input Error","Max number of OTFs must be a positive integer (or blank)"])
 	if maxOTFage.get():
 		if not maxOTFage.get().isdigit():
-			tkMessageBox.showinfo("Input Error",
-				"Max OTF age must be a positive integer (or blank)")
-			return 0
+			errors.append(["Optimized Reconstruction Input Error","Max OTF age must be a positive integer (or blank)"])
 	if not OilMin.get().isdigit() or not int(OilMin.get()) in C.valid['oilMin']:
-		tkMessageBox.showinfo("Input Error", "Oil min must be an integer between 1510 and 1530")
-		return 0
+		errors.append(["Optimized Reconstruction Input Error","Oil min must be an integer between 1510 and 1530"])
 	if not OilMax.get().isdigit() or not int(OilMax.get()) in C.valid['oilMax']:
-		tkMessageBox.showinfo("Input Error", "Oil max must be an integer between 1510 and 1530")
-		return 0
+		errors.append(["Optimized Reconstruction Input Error","Oil max must be an integer between 1510 and 1530"])
 	if not cropsize.get().isdigit() or not int(cropsize.get()) in C.valid['cropsize']:
-		tkMessageBox.showinfo("Input Error", "Cropsize must be a power of 2 <= 512")
-		return 0
-	waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
+		errors.append(["Optimized Reconstruction Input Error","Cropsize must be a power of 2 <= 512"])
 	if doReg.get():
+		waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 		if not int(RefChannel.get()) in waves:
-			tkMessageBox.showinfo("Input Error",
-				"Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
-			return 0
+			errors.append(["Registration Settings Error","Reference channel must be one of the following:" + " ".join([str(w) for w in waves])])
 		if not RegFile.get().strip():
-			tkMessageBox.showinfo("Registration File Error",
-				"Please select a registration file in the config tab")
-			return 0
+			errors.append(["Registration File Error","Please select a registration file in the registration tab"])
 	selectedchannels = [key for key, val in channelSelectVars.items() if val.get() == 1]
 	if len(selectedchannels) == 0:
-		tkMessageBox.showinfo(
-			"Input Error",
-			"You must select at least one channel to reconstruct:")
-		return 0
-
-	# OTFdir.get()
-	# doMax.get()
-	return 1
+		errors.append(["Input Error","You must select at least one channel to reconstruct:"])
+	if len(errors):
+		if not silent:
+			[tkMessageBox.showinfo(*error) for error in errors]
+		return 0,errors
+	else:
+		return 1,errors
 
 
 def getOTFdir():
@@ -414,8 +403,10 @@ def cancel():
 	global serverBusy
 	global sentinel
 	sentinel = ['canceled']
-	serverBusy = 0
-	statusTxt.set("Process canceled!")
+	if serverBusy:
+		serverBusy = 0
+		statusTxt.set("Process canceled!")
+		textArea.insert(Tk.END, "Process canceled...\n\n")
 
 
 def runReconstruct(mode):
@@ -433,9 +424,14 @@ def runReconstruct(mode):
 		print 'entries Valid failed....'
 		return 0
 
+
+def get_git_revision_short_hash():
+	import subprocess
+	os.chdir(os.path.dirname(os.path.realpath(__file__)))
+	return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
+
 root = Tk.Tk()
-root.title('CBMF SIM Reconstruction Tool v.%s' % datetime.fromtimestamp(
-	os.path.getctime(os.path.realpath(__file__))).strftime('%y-%m-%d %H:%M'))
+root.title('CBMF SIM Reconstruction Tool v.%s' % get_git_revision_short_hash())
 
 top_frame = Tk.Frame(root)
 
@@ -745,6 +741,9 @@ def dobatch(mode):
 	"""
 	batchlist = []
 	directory = batchDir.get()
+	if not directory:
+		tkMessageBox.showinfo('No batch directory!', 'Please chose a directory for batch reconstruction')
+		return 0
 	for R, S, F in os.walk(directory):
 		for file in F:
 			fullpath = os.path.join(R, file)
@@ -755,9 +754,9 @@ def dobatch(mode):
 		global sentinel
 		global serverBusy
 		if serverBusy:
-			root.after(600, callback, mode)
+			print "server busy"
+			root.after(1500, callback, mode)
 		else:
-			serverBusy = 1
 			if len(batchlist) == 0:
 				print("Batch reconstruction finished")
 				statusTxt.set("Batch reconstruction finished")
@@ -766,9 +765,19 @@ def dobatch(mode):
 				pass
 			else:
 				item = batchlist.pop(0)
+				print item
 				setRawFile(item)
-				print("Batch reconstruction on: %s" % item)
-				runReconstruct(mode)
+				V=entriesValid(silent=True)
+				if V[0]:
+					print("Batch reconstruction on: %s" % item)
+					serverBusy = 1
+					runReconstruct(mode)
+				else:
+					print("Invalid settings on file: %s" % item)
+					textArea.insert(Tk.END, "Batch job skipping file: %s\n" % item)
+					[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
+					textArea.insert(Tk.END, "\n")
+					serverBusy = 0
 				callback(mode)
 	callback(mode)
 
@@ -817,6 +826,10 @@ helpText.config(height=17, state='disabled')
 textArea = ScrolledText(textAreaFrame)
 textArea.config(height=10)
 textArea.pack(side='bottom', fill='both')
+
+Tk.Button(textAreaFrame, text="Clear", command=lambda: textArea.delete(1.0, 'end'), relief='flat', padx=7, pady=4).place(
+	relx=1.0, rely=1.0, x=-23, y=-5, anchor="se")
+
 
 # STATUS BAR
 statusTxt = Tk.StringVar()
