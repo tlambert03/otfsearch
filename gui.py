@@ -1,3 +1,5 @@
+"""Tkinter-based GUI for OTF-searching workflow."""
+
 import Tkinter as Tk
 import tkFileDialog
 import tkMessageBox
@@ -25,7 +27,8 @@ currentFileTransfer = str()
 serverBusy = 0
 
 
-def connectToServer(host=None, user=None):
+def make_connection(host=None, user=None):
+	"""Open connection to ssh server with paramiko."""
 	if not host: host = server.get()
 	if not user: user = username.get()
 	statusTxt.set("connecting to " + host + "...")
@@ -51,7 +54,9 @@ def connectToServer(host=None, user=None):
 		return 0
 	except paramiko.AuthenticationException as e:
 		# bad password/hostkey?
-		tkMessageBox.showinfo('Connection Failed!', "Authentication error: no password/hostkey?")
+		tkMessageBox.showinfo(
+			'Connection Failed!',
+			"Authentication error: no password/hostkey?")
 		return 0
 	except Exception as e:
 		print e
@@ -59,81 +64,100 @@ def connectToServer(host=None, user=None):
 		return 0
 	return ssh
 
-def uploadFile(inputFile, remotepath, mode):
-	'''
-	starts a thread for sftp.put.
-	the mode command is passed to the updateTranserStatus function
+
+def test_connect():
+	"""Test connection to ssh server and provide feedback."""
+	if make_connection():
+		tkMessageBox.showinfo('Yay!', '%s\nConnection successfull!' % server.get())
+	else:
+		statusTxt.set('Aw snap.', '%s\nConnection failed!' % server.get())
+
+
+def upload(file, remotepath, mode):
+	"""
+	Start a thread for sftp.put.
+
+	The 'mode' command is passed to the updateTranserStatus function
 	to determine which command gets sent to the server after upload
-	'''
-	print 'Uploading: %s' % inputFile
-	ssh = connectToServer()
+	"""
+	print 'Uploading: %s' % file
+	ssh = make_connection()
 	if ssh:
-		thr = threading.Thread(target=putFile, args=(inputFile, remotepath, ssh))
+		thr = threading.Thread(target=sftp_put, args=(file, remotepath, ssh))
 		thr.start()
-		remoteFile = os.path.join(remotepath, os.path.basename(inputFile))
-		root.after(400, updateTransferStatus, (remoteFile, mode))
+		remotefile = os.path.join(remotepath, os.path.basename(file))
+		root.after(400, update_progress, (remotefile, mode))
 
 
-def putFile(inputFile, remotepath, ssh):
+def sftp_put(infile, remotepath, ssh):
+	"""Use paramiko sftp to upload infile to remotepath."""
 	sftp = ssh.open_sftp()
-	remoteFile = os.path.join(remotepath, os.path.basename(inputFile))
-	if os.path.basename(remoteFile) in sftp.listdir(remotepath) and \
-		sftp.stat(remoteFile).st_size == os.stat(inputFile).st_size:
+	remotefile = os.path.join(remotepath, os.path.basename(infile))
+	if os.path.basename(remotefile) in sftp.listdir(remotepath) and \
+		sftp.stat(remotefile).st_size == os.stat(infile).st_size:
 			statusTxt.set("File already exists on remote server...")
 	else:
-		statusTxt.set( "copying to server...")
+		statusTxt.set("copying to server...")
 		global currentFileTransfer
-		currentFileTransfer=os.path.basename(inputFile)
-		sftp.put(inputFile, remoteFile, callback=SFTPprogress)
+		currentFileTransfer = os.path.basename(infile)
+		sftp.put(infile, remotefile, callback=sftp_progress)
 	ssh.close()
 	global sentinel
-	sentinel=['putDone']
+	sentinel = ['putDone']
 
 
-def downloadFiles(fileList, ssh):
+def download(filelist, ssh):
+	"""Start a thread for sftp.get."""
 	global sentinel
-	sentinel=[0]
+	sentinel = [0]
 	if ssh:
-		thr = threading.Thread(target=getFiles, args=(fileList, ssh))
+		thr = threading.Thread(target=sftp_get, args=(filelist, ssh))
 		thr.start()
-		root.after(400, updateTransferStatus, (fileList,))
+		root.after(400, update_progress, (filelist,))
 
 
-def getFiles(fileList, ssh):
+def sftp_get(filelist, ssh):
+	"""Use paramiko sftp to download a list of files."""
 	# statusTxt.set( "Downloading files...")
 	sftp = ssh.open_sftp()
 	# this assumes the user hasn't changed it since clicking "reconstruct"
-	for file in fileList:
+	for file in filelist:
 		# statusTxt.set( "Downloading %s..." % file)
 		print "Downloading: %s" % file
-		localDest = os.path.dirname(rawFilePath.get())
+		localpath = os.path.dirname(rawFilePath.get())
 		global currentFileTransfer
-		currentFileTransfer=os.path.basename(file)
-		sftp.get(file, os.path.join(localDest,os.path.basename(file)), callback=SFTPprogress)
+		currentFileTransfer = os.path.basename(file)
+		sftp.get(
+			file,
+			os.path.join(localpath, os.path.basename(file)),
+			callback=sftp_progress)
 	ssh.close()
 	global sentinel
-	sentinel=['getDone']
+	sentinel = ['getDone']
 
 
-def SFTPprogress(transferred, outOf):
+def sftp_progress(transferred, outof):
+	"""Update global sentinel variable with sftp progress."""
 	global sentinel
-	sentinel=['sftpProgress',transferred, outOf]
+	sentinel = ['sftpProgress', transferred, outof]
 
 
-def updateTransferStatus(tup):
+def update_progress(tup):
+	"""Update status bar with file transfer progress."""
 	global sentinel
-	if sentinel[0]=='sftpProgress':
-		statusTxt.set("Transferring %s: %0.1f of %0.1f MB" % (currentFileTransfer,float(sentinel[1])/1000000,float(sentinel[2])/1000000))
-		root.after(400, updateTransferStatus, tup)
+	if sentinel[0] == 'sftpProgress':
+		statusTxt.set("Transferring %s: %0.1f of %0.1f MB" %
+			(currentFileTransfer, float(sentinel[1]) / 1000000, float(sentinel[2]) / 1000000))
+		root.after(400, update_progress, tup)
 	elif sentinel[0] is 'putDone':
 		statusTxt.set("Upload finished...")
-		if tup[1]=='optimal':
-			sendRemoteCommand(makeOTFsearchCommand(tup[0]))
-		elif tup[1]=='single':
-			sendRemoteCommand(makeSpecifiedOTFcommand(tup[0]))
-		elif tup[1]=='registerCal':
-			sendRemoteCommand(makeRegCalCommand(tup[0]))
-		# By not calling root.after here, we allow updateTransferStatus to truly end
+		if tup[1] == 'optimal':
+			send_command(make_command_optimized(tup[0]))
+		elif tup[1] == 'single':
+			send_command(make_command_single(tup[0]))
+		elif tup[1] == 'registerCal':
+			send_command(make_command_regcal(tup[0]))
+		# By not calling root.after here, we allow update_progress to truly end
 		pass
 	elif sentinel[0] is 'getDone':
 		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
@@ -143,69 +167,76 @@ def updateTransferStatus(tup):
 	elif sentinel[0] is 'canceled':
 		statusTxt.set("Process canceled")
 	else:
-		root.after(400, updateTransferStatus, tup)
+		root.after(400, update_progress, tup)
 
-def makeRegCalCommand(remoteFile):
-	command = ['python', C.remoteRegCalibration, remoteFile, '--outpath', C.regFileDir]
+
+def make_command_regcal(remotefile):
+	"""Generate shell command for remote registration calibration."""
+	command = ['python', C.remoteRegCalibration, remotefile, '--outpath', C.regFileDir]
 	if calibrationIterations.get(): command.extend(['--iter', calibrationIterations.get()])
 	return command
 
-def makeSpecifiedOTFcommand(remoteFile):
-	command = ['python', C.remoteSpecificScript, remoteFile, 
-				'--regfile', RegFile.get(), '-r', RefChannel.get() ]
-	if wiener.get().strip():  
+
+def make_command_single(remotefile):
+	"""Generate shell command for remote single reconstruction."""
+	command = ['python', C.remoteSpecificScript, remotefile,
+				'--regfile', RegFile.get(), '-r', RefChannel.get()]
+	if wiener.get().strip():
 		command.extend(['-w', wiener.get()])
-	if timepoints.get().strip():  
-		command.extend(['-t',timepoints.get()])
-	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	for c in selectedChannels:
-		command.extend(['-o', "=".join([str(c),channelOTFPaths[c].get()])])
+	if timepoints.get().strip():
+		command.extend(['-t', timepoints.get()])
+	selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
+	for c in selected_channels:
+		command.extend(['-o', "=".join([str(c), channelOTFPaths[c].get()])])
 	if doMax.get(): command.append('-x')
 	if doReg.get(): command.append('-g')
 	return command
 
-def makeOTFsearchCommand(remoteFile):
-	command = ['python', C.remoteOptScript, remoteFile,  '-l', OilMin.get(), '-m', OilMax.get(), 
-				'-p', cropsize.get(), '--otfdir', OTFdir.get(), '--regfile', RegFile.get(), 
-				'-r', RefChannel.get(), '-x', doMax.get(), '-g', doReg.get()]
-	if maxOTFage.get().strip(): 
+
+def make_command_optimized(remotefile):
+	"""Generate shell command for remote optmized reconstruction."""
+	command = ['python', C.remoteOptScript, remotefile, '-l', OilMin.get(),
+				'-m', OilMax.get(), '-p', cropsize.get(), '--otfdir', OTFdir.get(),
+				'--regfile', RegFile.get(), '-r', RefChannel.get(),
+				'-x', doMax.get(), '-g', doReg.get()]
+	if maxOTFage.get().strip():
 		command.extend(['-a', maxOTFage.get()])
-	if maxOTFnum.get().strip():  
+	if maxOTFnum.get().strip():
 		command.extend(['-n', maxOTFnum.get()])
-	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	if selectedChannels:
-		command.extend(['-c', " ".join([str(n) for n in sorted(selectedChannels)])])
-	#if not all([k==v.get() for k,v in forceChannels.items() if k in selectedChannels]):
+	selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
+	if selected_channels:
+		command.extend(['-c', " ".join([str(n) for n in sorted(selected_channels)])])
+	# if not all([k==v.get() for k,v in forceChannels.items() if k in selected_channels]):
 	# if any of the channel:otf pairings have been changed
-	for c in selectedChannels:
+	for c in selected_channels:
 		# build the "force channels" commands
-		if not c==forceChannels[c].get(): 
-			command.extend(['-f', "=".join([str(c),str(forceChannels[c].get())])])
+		if not c == forceChannels[c].get():
+			command.extend(['-f', "=".join([str(c), str(forceChannels[c].get())])])
 	return command
 
 
-def sendRemoteCommand(command):
-	ssh = connectToServer()
+def send_command(command):
+	"""Send one of the commands above to the server."""
+	ssh = make_connection()
 	if ssh:
 		channel = ssh.invoke_shell()
 
-		statusTxt.set( "Sending command to remote server..." )
+		statusTxt.set("Sending command to remote server...")
 		channel.send(" ".join([str(s) for s in command]) + '\n')
 
-		def updateStatusBar():
+		def updatestatus():
 			if channel.recv_ready():
 				response = channel.recv(2048)
 			else:
-				response=''
+				response = ''
 			global sentinel
-			if sentinel[0]=='canceled':
-				statusTxt.set("Process canceled!")
+			if sentinel[0] == 'canceled':
 				ssh.close()
 				sentinel = [0]
 				return 0
-			if response!='':
+			if response != '':
 				statusTxt.set("Receiving feedback from server ... see text area above for details.")
-				r=[r for r in response.splitlines() if r and r!='']
+				r = [r for r in response.splitlines() if r and r != '']
 				textArea.insert(Tk.END, "\n".join(r))
 				textArea.insert(Tk.END, "\n")
 				textArea.yview(Tk.END)
@@ -220,11 +251,11 @@ def sendRemoteCommand(command):
 				if 'Files Ready:' in r:
 					i=r.index('Files Ready:')+1
 					statusTxt.set("Downloading files from server... ")
-					fileList = []
+					filelist = []
 					while not r[i].startswith('Done'):
-						fileList.append(r[i].split(": ")[1])
+						filelist.append(r[i].split(": ")[1])
 						i+=1
-					downloadFiles(fileList, ssh)
+					download(filelist, ssh)
 					return
 			if response.endswith(':~$ '):
 				if 'OTFs' not in statusTxt.get():
@@ -235,8 +266,8 @@ def sendRemoteCommand(command):
 				ssh.close()
 
 			else:
-				statusBar.after(1000, updateStatusBar)
-		updateStatusBar()
+				statusBar.after(1000, updatestatus)
+		updatestatus()
 
 
 def activateWaves(waves):
@@ -270,11 +301,13 @@ def setRawFile(filename):
 def entriesValid():
 	if maxOTFnum.get():
 		if not maxOTFnum.get().isdigit():
-			tkMessageBox.showinfo("Input Error", "Max number of OTFs must be a positive integer (or blank)")
+			tkMessageBox.showinfo("Input Error",
+				"Max number of OTFs must be a positive integer (or blank)")
 			return 0
 	if maxOTFage.get():
 		if not maxOTFage.get().isdigit():
-			tkMessageBox.showinfo("Input Error", "Max OTF age must be a positive integer (or blank)")
+			tkMessageBox.showinfo("Input Error",
+				"Max OTF age must be a positive integer (or blank)")
 			return 0
 	if not OilMin.get().isdigit() or not int(OilMin.get()) in C.valid['oilMin']:
 		tkMessageBox.showinfo("Input Error", "Oil min must be an integer between 1510 and 1530")
@@ -288,38 +321,42 @@ def entriesValid():
 	waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 	if doReg.get():
 		if not int(RefChannel.get()) in waves:
-			tkMessageBox.showinfo("Input Error", "Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
+			tkMessageBox.showinfo("Input Error",
+				"Reference channel must be one of the following:" + " ".join([str(w) for w in waves]))
 			return 0
 		if not RegFile.get().strip():
-			tkMessageBox.showinfo("Registration File Error", "Please select a registration file in the config tab")
+			tkMessageBox.showinfo("Registration File Error",
+				"Please select a registration file in the config tab")
 			return 0
-	selectedChannels=[key for key, val in channelSelectVars.items() if val.get()==1]
-	if len(selectedChannels)==0:
-		tkMessageBox.showinfo("Input Error", "You must select at least one channel to reconstruct:")
+	selectedchannels = [key for key, val in channelSelectVars.items() if val.get() == 1]
+	if len(selectedchannels) == 0:
+		tkMessageBox.showinfo(
+			"Input Error",
+			"You must select at least one channel to reconstruct:")
 		return 0
 
-	#OTFdir.get()
-	#doMax.get()
+	# OTFdir.get()
+	# doMax.get()
 	return 1
 
 
 def getOTFdir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		OTFdir.set( filename )
+		OTFdir.set(filename )
 def getSIRconfigDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		SIRconfigDir.set( filename )
+		SIRconfigDir.set(filename )
 def getbatchDir():
 	filename = tkFileDialog.askdirectory()
 	if filename:
-		batchDir.set( filename )
+		batchDir.set(filename )
 
 
 def getRegFile():
 
-	ssh = connectToServer()
+	ssh = make_connection()
 	sftp = ssh.open_sftp()
 	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat')])
 
@@ -328,16 +365,16 @@ def getRegFile():
 	scrollbar = Tk.Scrollbar(top)
 	scrollbar.grid(row=0, column=3, sticky='ns')
 
-	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=45)
-	
-	for item in reglist:
-		LB.insert(Tk.END, os.path.basename(item))
-	LB.grid(row=0, column=0, columnspan=3)
+	lb = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=45)
 
-	scrollbar.config(command=LB.yview)
+	for item in reglist:
+		lb.insert(Tk.END, os.path.basename(item))
+	lb.grid(row=0, column=0, columnspan=3)
+
+	scrollbar.config(command=lb.yview)
 
 	def Select():
-		items = LB.curselection()
+		items = lb.curselection()
 
 		item = [reglist[int(item)] for item in items][0]
 
@@ -350,7 +387,7 @@ def getRegFile():
 
 	cancelButton = Tk.Button(top, text="Cancel",command=lambda : top.destroy() , pady=6, padx=10)
 	cancelButton.grid(row=1, column=1)
-	
+
 	top.update_idletasks()
 	w = top.winfo_screenwidth()
 	h = top.winfo_screenheight()
@@ -362,26 +399,29 @@ def getRegFile():
 
 
 def quit():
+	"""Quit the program."""
 	root.destroy()
 
 def cancel():
+	"""Cancel the current activity."""
 	global serverBusy
 	global sentinel
 	sentinel = ['canceled']
-	serverBusy=0
+	serverBusy = 0
+	statusTxt.set("Process canceled!")
 
 
 def runReconstruct(mode):
-	inputFile = rawFilePath.get()
-	if not os.path.exists(inputFile):
+	inputfile = rawFilePath.get()
+	if not os.path.exists(inputfile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
 		return 0
-	if not isRawSIMfile(inputFile):
+	if not isRawSIMfile(inputfile):
 		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
 		if response == "no":
 			return 0
 	if entriesValid():
-		uploadFile(inputFile, C.remotepath, mode)
+		upload(inputfile, C.remotepath, mode)
 	else:
 		print 'entries Valid failed....'
 		return 0
@@ -455,58 +495,75 @@ RefChannelEntry.grid(row=2, column=1, columnspan=1, sticky='W')
 
 doReg = Tk.IntVar()
 doReg.set(C.doReg)
-doRegButton = Tk.Checkbutton(top_frame, variable=doReg, text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v)).grid(row=2, column=2, columnspan=2, sticky='W')
+doRegButton = Tk.Checkbutton(top_frame, variable=doReg,
+	text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v))
+doRegButton.grid(row=2, column=2, columnspan=2, sticky='W')
 
 doMax = Tk.IntVar()
 doMax.set(C.doMax)
-doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(row=2, column=4, columnspan=2, sticky='W')
+doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection')
+doMaxButton.grid(row=2, column=4, columnspan=2, sticky='W')
 
 
-quitButton = Tk.Button(top_frame, text ="Quit", command = quit, width=9).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
+quitButton = Tk.Button(top_frame, text="Quit", command=quit, width=9)
+quitButton.grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
 
-quitButton = Tk.Button(top_frame, text ="Cancel", command = cancel, width=9).grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
+quitButton = Tk.Button(top_frame, text="Cancel", command=cancel, width=9)
+quitButton.grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
 
 
 # OTF search tab widgets
 
-leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):', 'Min Oil RI:', 
-			'Max Oil RI:']
+leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):',
+	'Min Oil RI:', 'Max Oil RI:']
 for i in range(len(leftLabels)):
 	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i, sticky='E')
 
 maxOTFage = Tk.StringVar()
 maxOTFage.set(C.maxAge if C.maxAge is not None else '')
-maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=0, column=1, columnspan=3, sticky='W')
+maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage)
+maxOTFageEntry.grid(row=0, column=1, columnspan=3, sticky='W')
 
 maxOTFnum = Tk.StringVar()
 maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
-maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=1, column=1, columnspan=3, sticky='W')
+maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum)
+maxOTFnumEntry.grid(row=1, column=1, columnspan=3, sticky='W')
 
 cropsize = Tk.StringVar()
 cropsize.set(C.cropsize)
-cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=2, column=1, columnspan=3, sticky='W')
+cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize)
+cropsizeEntry.grid(row=2, column=1, columnspan=3, sticky='W')
 
 OilMin = Tk.StringVar()
 OilMin.set(C.oilMin)
-OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=3, column=1, columnspan=3, sticky='W')
+OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin)
+OilMinEntry.grid(row=3, column=1, columnspan=3, sticky='W')
 
 OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
-OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=4, column=1, columnspan=3, sticky='W')
+OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax)
+OilMaxEntry.grid(row=4, column=1, columnspan=3, sticky='W')
 
 
-Tk.Button(otfsearchFrame, text ="Run OTF Search", command = partial(runReconstruct, 'optimal'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(otfsearchFrame, text="Run OTF Search",
+	command=partial(runReconstruct, 'optimal'), width=12).grid(row=8,
+	column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
-forceChannels={}
-forceChannelsMenus={}
-Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings", font=('Arial',12, 'bold')).grid(row=0, column=5, columnspan=3, sticky='w', padx=(20, 0))
+forceChannels = {}
+forceChannelsMenus = {}
+Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings",
+	font=('Arial', 12, 'bold')).grid(row=0, column=5, columnspan=3,
+	sticky='w', padx=(20, 0))
+
 for i in range(len(allwaves)):
-	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i+1, column=5, sticky='E', padx=(40, 0))
+	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i + 1,
+		column=5, sticky='E', padx=(40, 0))
 	forceChannels[allwaves[i]] = Tk.IntVar()
 	forceChannels[allwaves[i]].set(allwaves[i])
-	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame, forceChannels[allwaves[i]], *allwaves)
-	forceChannelsMenus[allwaves[i]].grid(row=i+1, column=6,sticky='w')
-	
+	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame,
+		forceChannels[allwaves[i]], *allwaves)
+	forceChannelsMenus[allwaves[i]].grid(row=i + 1, column=6, sticky='w')
+
 
 # SINGLE RECON TAB
 
@@ -514,20 +571,22 @@ for i in range(len(allwaves)):
 Tk.Label(singleReconFrame, text='Wiener constant:').grid(row=0, sticky='e')
 wiener = Tk.StringVar()
 wiener.set('')
-wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15).grid(row=0, column=1, sticky='W')
+wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15)
+wienerEntry.grid(row=0, column=1, sticky='W')
 
 Tk.Label(singleReconFrame, text='Timepoints:').grid(row=0, column=2, sticky='e')
 timepoints = Tk.StringVar()
 timepoints.set('')
-timepointsEntry = Tk.Entry(singleReconFrame, textvariable=timepoints, width=15).grid(row=0, column=3, sticky='W')
+timepointsEntry = Tk.Entry(singleReconFrame, textvariable=timepoints, width=15)
+timepointsEntry.grid(row=0, column=3, sticky='W')
 
 
 for i in range(len(allwaves)):
-	Tk.Label(singleReconFrame, text=str(allwaves[i])+"nm OTF: ").grid(row=i+1, sticky='E')
+	Tk.Label(singleReconFrame, text=str(allwaves[i]) + "nm OTF: ").grid(row=i + 1, sticky='E')
 
 def getChannelOTF(var):
 
-	ssh = connectToServer()
+	ssh = make_connection()
 	sftp = ssh.open_sftp()
 	otflist = sorted([item for item in sftp.listdir(OTFdir.get()) if item.endswith('.otf')])
 	selectedlist = [item for item in otflist if item.startswith(str(var))]
@@ -538,29 +597,29 @@ def getChannelOTF(var):
 	scrollbar = Tk.Scrollbar(top)
 	scrollbar.grid(row=0, column=3, sticky='ns')
 
-	LB = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
+	lb = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
 	
 	for item in selectedlist:
-		LB.insert(Tk.END, os.path.basename(item))
-	LB.grid(row=0, column=0, columnspan=3)
+		lb.insert(Tk.END, os.path.basename(item))
+	lb.grid(row=0, column=0, columnspan=3)
 
-	scrollbar.config(command=LB.yview)
+	scrollbar.config(command=lb.yview)
 
 	def Select():
-		items = LB.curselection()
+		items = lb.curselection()
 		if fullist:
 			item = [otflist[int(item)] for item in items][0]
 		else:
 			item = [selectedlist[int(item)] for item in items][0]
-		if item: 
-			channelOTFPaths[var].set(os.path.join(OTFdir.get(),item))
+		if item:
+			channelOTFPaths[var].set(os.path.join(OTFdir.get(), item))
 		top.destroy()
 
 	def ShowAll():
-		LB.delete(0, 'end')
+		lb.delete(0, 'end')
 		for item in otflist:
-			LB.insert(Tk.END, os.path.basename(item))
-		fullist=1
+			lb.insert(Tk.END, os.path.basename(item))
+		fullist = 1
 
 	def Cancel():
 		top.destroy()
@@ -607,15 +666,15 @@ Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruc
 def getregCalImage():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
 	if filename:
-		regCalImage.set( filename )
+		regCalImage.set(filename )
 
 
 def sendRegCal():
-	inputFile = regCalImage.get()
-	if not os.path.exists(inputFile):
+	inputfile = regCalImage.get()
+	if not os.path.exists(inputfile):
 		tkMessageBox.showinfo("Input file Error", "Registration calibration image doesn't exist")
 		return 0
-	uploadFile(inputFile, C.remotepath, 'registerCal')
+	upload(inputfile, C.remotepath, 'registerCal')
 
 
 Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
@@ -635,7 +694,7 @@ Tk.Label(configFrame, text='OTF Directory:').grid(row=0, sticky='e')
 OTFdir = Tk.StringVar()
 OTFdirEntry = Tk.Entry(configFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
 chooseOTFdirButton = Tk.Button(configFrame, text ="Choose Dir", command = getOTFdir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
-OTFdir.set( C.OTFdir )
+OTFdir.set(C.OTFdir )
 
 Tk.Label(configFrame, text='SIR config Dir:').grid(row=1, sticky='e')
 SIRconfigDir = Tk.StringVar()
@@ -659,14 +718,9 @@ username = Tk.StringVar()
 usernameEntry = Tk.Entry(configFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
 username.set( C.username )
 
-def testConnection():
-	if connectToServer():
-		tkMessageBox.showinfo('Yay!','%s\nConnection successfull!' % server.get())
-	else:
-		statusTxt.set('Aw snap.','%s\nConnection failed!' % server.get())
 
-
-Tk.Button(configFrame, text ="Test Connection", command = testConnection, width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
+Tk.Button(configFrame, text="Test Connection", command=test_connect,
+	width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
 
 
 # BATCH TAB
@@ -677,25 +731,34 @@ batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=48).grid(row=0
 batchDirButton = Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
 
-def batchRecon(mode):
-	batchlist=[]
-	directory =  batchDir.get()
+def dobatch(mode):
+	"""Start batch job.
+
+	mode can be one of 'optimal', 'single', or 'register'
+	and will perform the corresponding task on the provided
+	batch folder
+	"""
+	batchlist = []
+	directory = batchDir.get()
 	for R, S, F in os.walk(directory):
 		for file in F:
-			fullpath=os.path.join(R,file)
+			fullpath = os.path.join(R, file)
 			if isRawSIMfile(fullpath):
 				batchlist.append(fullpath)
 
 	def callback(mode):
+		global sentinel
 		global serverBusy
-		if serverBusy:
+		if sentinel == ['canceled']:
+			pass
+		elif serverBusy:
 			root.after(600, callback, mode)
 		else:
-			serverBusy=1
+			serverBusy = 1
 			if len(batchlist):
 				item = batchlist.pop(0)
 				setRawFile(item)
-				print("Batch reconstruction on: %s" %item)
+				print("Batch reconstruction on: %s" % item)
 				runReconstruct(mode)
 				callback(mode)
 			else:
@@ -706,8 +769,8 @@ def batchRecon(mode):
 
 
 
-Tk.Button(batchFrame, text="Batch Optimized Recon", command=partial(batchRecon, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
-Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(batchRecon, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text="Batch Optimized Recon", command=partial(dobatch, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(dobatch, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(row=2, column=1, columnspan=6, sticky='e')
 
 # Help Frame
