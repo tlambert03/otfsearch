@@ -21,40 +21,41 @@ except ImportError as e:
 	sys.exit()
 
 sentinel = [0]
-currentFileTransfer=str()
+currentFileTransfer = str()
 serverBusy = 0
 
+
 def connectToServer(host=None, user=None):
-	if not host: host=server.get()
+	if not host: host = server.get()
 	if not user: user = username.get()
-	statusTxt.set( "connecting to " + host + "..." )
+	statusTxt.set("connecting to " + host + "...")
 	ssh = paramiko.SSHClient()
-	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
-	# is this necessary? 
-	#hostkey = os.path.expanduser(os.path.join("~", ".ssh", "known_hosts"))
-	#try:
-	#	ssh.load_host_keys(hostkey)
-	#except IOError as e:
-	#	statusTxt.set(e)
-	#	return 0
+	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	# is this necessary?
+	# hostkey = os.path.expanduser(os.path.join("~", ".ssh", "known_hosts"))
+	# try:
+	# 	ssh.load_host_keys(hostkey)
+	# except IOError as e:
+	# 	statusTxt.set(e)
+	# 	return 0
 	try:
 		ssh.connect(host, username=user)
-		statusTxt.set( "connected to " + host )
+		statusTxt.set("connected to " + host)
 	except socket.gaierror as e:
 		# bad server name?
-		tkMessageBox.showinfo( 'Connection Failed!', "bad servername?:\n " + host)
+		tkMessageBox.showinfo('Connection Failed!', "bad servername?:\n " + host)
 		return 0
 	except paramiko.PasswordRequiredException as e:
 		# bad username?
-		tkMessageBox.showinfo( 'Connection Failed!', "bad username?\n " + user)
+		tkMessageBox.showinfo('Connection Failed!', "bad username?\n " + user)
 		return 0
 	except paramiko.AuthenticationException as e:
 		# bad password/hostkey?
-		tkMessageBox.showinfo( 'Connection Failed!', "Authentication error: no password/hostkey?")
+		tkMessageBox.showinfo('Connection Failed!', "Authentication error: no password/hostkey?")
 		return 0
 	except Exception as e:
 		print e
-		tkMessageBox.showinfo( 'Connection Failed!',e)
+		tkMessageBox.showinfo('Connection Failed!', e)
 		return 0
 	return ssh
 
@@ -69,14 +70,16 @@ def uploadFile(inputFile, remotepath, mode):
 	if ssh:
 		thr = threading.Thread(target=putFile, args=(inputFile, remotepath, ssh))
 		thr.start()
-		remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-		root.after(400, updateTransferStatus, (remoteFile,mode))
+		remoteFile = os.path.join(remotepath, os.path.basename(inputFile))
+		root.after(400, updateTransferStatus, (remoteFile, mode))
+
 
 def putFile(inputFile, remotepath, ssh):
 	sftp = ssh.open_sftp()
-	remoteFile=os.path.join(remotepath,os.path.basename(inputFile))
-	if os.path.basename(remoteFile) in sftp.listdir(remotepath) and sftp.stat(remoteFile).st_size ==  os.stat(inputFile).st_size:
-		statusTxt.set( "File already exists on remote server...")
+	remoteFile = os.path.join(remotepath, os.path.basename(inputFile))
+	if os.path.basename(remoteFile) in sftp.listdir(remotepath) and \
+		sftp.stat(remoteFile).st_size == os.stat(inputFile).st_size:
+			statusTxt.set("File already exists on remote server...")
 	else:
 		statusTxt.set( "copying to server...")
 		global currentFileTransfer
@@ -97,11 +100,11 @@ def downloadFiles(fileList, ssh):
 
 
 def getFiles(fileList, ssh):
-	#statusTxt.set( "Downloading files...")
+	# statusTxt.set( "Downloading files...")
 	sftp = ssh.open_sftp()
 	# this assumes the user hasn't changed it since clicking "reconstruct"
 	for file in fileList:
-		#statusTxt.set( "Downloading %s..." % file)
+		# statusTxt.set( "Downloading %s..." % file)
 		print "Downloading: %s" % file
 		localDest = os.path.dirname(rawFilePath.get())
 		global currentFileTransfer
@@ -141,7 +144,6 @@ def updateTransferStatus(tup):
 		statusTxt.set("Process canceled")
 	else:
 		root.after(400, updateTransferStatus, tup)
-
 
 def makeRegCalCommand(remoteFile):
 	command = ['python', C.remoteRegCalibration, remoteFile, '--outpath', C.regFileDir]
@@ -315,14 +317,6 @@ def getbatchDir():
 		batchDir.set( filename )
 
 
-
-def getRegFile():
-	filename = tkFileDialog.askopenfilename(filetypes=[('MATLAB files', '.mat')])
-	if filename:
-		RegFile.set( filename )
-
-
-
 def getRegFile():
 
 	ssh = connectToServer()
@@ -351,13 +345,10 @@ def getRegFile():
 			RegFile.set(os.path.join(C.regFileDir,item))
 		top.destroy()
 
-	def Cancel():
-		top.destroy()
-
 	selectButton = Tk.Button(top, text="Select",command=Select, pady=6, padx=10)
 	selectButton.grid(row=1, column=0)
 
-	cancelButton = Tk.Button(top, text="Cancel",command=Cancel, pady=6, padx=10)
+	cancelButton = Tk.Button(top, text="Cancel",command=lambda : top.destroy() , pady=6, padx=10)
 	cancelButton.grid(row=1, column=1)
 	
 	top.update_idletasks()
@@ -424,10 +415,10 @@ textAreaFrame = Tk.Frame(root, bg='gray', bd=2)
 statusFrame = Tk.Frame(root)
 
 
-top_frame.grid(row = 0, pady=10)
+top_frame.grid(row=0, pady=10)
 Nb.grid(row=1, padx=15, pady=5)
-textAreaFrame.grid(row = 2, sticky="nsew", padx=15, pady=10)
-statusFrame.grid(row = 3, sticky="ew")
+textAreaFrame.grid(row=2, sticky="nsew", padx=15, pady=10)
+statusFrame.grid(row=3, sticky="ew")
 
 
 # Top Area widgets
@@ -715,8 +706,8 @@ def batchRecon(mode):
 
 
 
-Tk.Button(batchFrame, text ="Batch Optimized Recon", command = partial(batchRecon, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
-Tk.Button(batchFrame, text ="Batch Recon with Specified OTFs", command = partial(batchRecon, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text="Batch Optimized Recon", command=partial(batchRecon, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(batchRecon, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(row=2, column=1, columnspan=6, sticky='e')
 
 # Help Frame
@@ -725,32 +716,32 @@ Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for bat
 helpText = ScrolledText(helpFrame, wrap='word')
 helpText.pack(fill='both')
 
-helpText.tag_configure("heading", font=('Helvetica',12,'bold'))
-helpText.tag_configure("paragraph", font=('Helvetica',10,'normal'))
-helpText.tag_configure("code", font=('Monaco',10,'bold'))
-helpText.tag_configure("italics", font=('Helvetica',12,'italic'))
+helpText.tag_configure("heading", font=('Helvetica', 12, 'bold'))
+helpText.tag_configure("paragraph", font=('Helvetica', 10, 'normal'))
+helpText.tag_configure("code", font=('Monaco', 10, 'bold'))
+helpText.tag_configure("italics", font=('Helvetica', 12, 'italic'))
 
-helpText.insert('insert','Input File\n', 'heading')
-helpText.insert('insert','Select a raw SIM .dv file to process and choose the ', 'paragraph')
-helpText.insert('insert','Channels ', 'code')
-helpText.insert('insert','that you would like to include in the reconstructions. ', 'paragraph')
-helpText.insert('insert','When you open a new file, the channels will be automatically populated based on the available channels in the image. \n', 'paragraph')
-helpText.insert('insert','\n')
-helpText.insert('insert','Optimized Reconstruction \n', 'heading')
-helpText.insert('insert','Use this tab to search the folder of OTFs specified in the configuration tab for the optimal OTF for each channel. ', 'paragraph')
-helpText.insert('insert','Adjust the OTF search parameters in the optimized reconstruction tab and hit the ', 'paragraph')
-helpText.insert('insert','Run OTF Search ', 'code')
-helpText.insert('insert','button. \n', 'paragraph')
-helpText.insert('insert','\n')
-helpText.insert('insert','Specify OTFs\n', 'heading')
-helpText.insert('insert','This tab can be used to specifiy OTFs for each channel present in the file, then perform a single reconstruction. \n ', 'paragraph')
-helpText.insert('insert','\n')
-helpText.insert('insert','Configuration\n', 'heading')
-helpText.insert('insert','The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
-helpText.insert('insert','\n')
-helpText.insert('insert',"If you are getting bugs or unexpected results, don't hesistate to ask for help!\n", 'italics')
-helpText.insert('insert','\n')
-helpText.insert('insert',"Created by Talley Lambert, (c) 2016", 'paragraph')
+helpText.insert('insert', 'Input File\n', 'heading')
+helpText.insert('insert', 'Select a raw SIM .dv file to process and choose the ', 'paragraph')
+helpText.insert('insert', 'Channels ', 'code')
+helpText.insert('insert', 'that you would like to include in the reconstructions. ', 'paragraph')
+helpText.insert('insert', 'When you open a new file, the channels will be automatically populated based on the available channels in the image. \n', 'paragraph')
+helpText.insert('insert', '\n')
+helpText.insert('insert', 'Optimized Reconstruction \n', 'heading')
+helpText.insert('insert', 'Use this tab to search the folder of OTFs specified in the configuration tab for the optimal OTF for each channel. ', 'paragraph')
+helpText.insert('insert', 'Adjust the OTF search parameters in the optimized reconstruction tab and hit the ', 'paragraph')
+helpText.insert('insert', 'Run OTF Search ', 'code')
+helpText.insert('insert', 'button. \n', 'paragraph')
+helpText.insert('insert', '\n')
+helpText.insert('insert', 'Specify OTFs\n', 'heading')
+helpText.insert('insert', 'This tab can be used to specifiy OTFs for each channel present in the file, then perform a single reconstruction. \n ', 'paragraph')
+helpText.insert('insert', '\n')
+helpText.insert('insert', 'Configuration\n', 'heading')
+helpText.insert('insert', 'The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
+helpText.insert('insert', '\n')
+helpText.insert('insert', "If you are getting bugs or unexpected results, don't hesistate to ask for help!\n", 'italics')
+helpText.insert('insert', '\n')
+helpText.insert('insert', "Created by Talley Lambert, (c) 2016", 'paragraph')
 
 helpText.config(height=17, state='disabled')
 
