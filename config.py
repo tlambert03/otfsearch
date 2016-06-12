@@ -1,20 +1,18 @@
-######################
-# CONFIGURATION FILE #
-######################
+"""Configuration File."""
 
 # CONNECTION TO REMOTE SERVER
 # this program assumes the use of private keys for authentication
 # https://help.github.com/articles/generating-an-ssh-key/
-server='cb-cbmf-latwork.med.harvard.edu'
-username='user'
+server = 'cb-cbmf-latwork.med.harvard.edu'
+username = 'user'
 
 # DIRECTORIES ON THE RECONSTRUCTION SERVER
 # temp folder where files will get uploaded to
-remotepath='/mnt/data0/remote/'
-# script to trigger optimized reconstruction 
+remotepath = '/mnt/data0/remote/'
+# script to trigger optimized reconstruction
 remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/__main__.py'
 # script to trigger single recon with specific OTFs
-remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py' 
+remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
 # script to trigger channel registration calibration
 remoteRegCalibration = '/mnt/data0/SIMrecon/otfsearch/calculateMatlabTform.py'
 # directory with all the OTFs
@@ -31,11 +29,11 @@ OTFextension = '.otf'
 # directory with config files for CUDA-SIMrecon reconstruction
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
 # path to CUDA-SIMrecon reconstruction app
-reconApp='/usr/local/bin/sir'
+reconApp = '/usr/local/bin/sir'
 
 # OPTMIIZED RECONSTRUCTION PARAMETERS
 # all files will be cropped to this size before reconstruction
-cropsize=256
+cropsize = 256
 # max age (in days) of OTFs to use in search process
 maxAge = None
 # max number of OTFs to use in search process
@@ -45,7 +43,7 @@ oilMin = 1510
 # maximum OTF oil RI to use in seach
 oilMax = 1522
 # whether to save the CSV file after scoring all the OTFS
-writeCSV=True
+writeCSV = True
 
 # REGISTRATION AND POST-RECONSTRUCTION PROCESSING
 # perform channel registration by default
@@ -67,10 +65,10 @@ MatlabTformCalc = 'OMXregCal'
 CalibrationIter = 10000
 
 # VALIDATION DICTIONARY
-#these are valid choices for the respective settings
-valid ={
-	'waves': [435,477,528,541,608,683],
-	'cropsize': [36,64,128,256,512,1024],
-	'oilMin': range(1510,1530),
-	'oilMax': range(1510,1530),
+# these are valid choices for the respective settings
+valid = {
+	'waves': [435, 477, 528, 541, 608, 683],
+	'cropsize': [36, 64, 128, 256, 512, 1024],
+	'oilMin': range(1510, 1530),
+	'oilMax': range(1510, 1530)
 }

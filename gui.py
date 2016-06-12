@@ -9,23 +9,35 @@ import os
 from __init__ import isRawSIMfile
 from ScrolledText import ScrolledText
 from ttk import Notebook, Style
-import Mrc
 import threading
 from functools import partial
 from ast import literal_eval
 import socket
-from datetime import datetime
-
 try:
 	import paramiko
 except ImportError as e:
 	print 'paramiko not installed'
 	print 'Please install paramiko by typing "pip install paramiko" in terminal'
 	sys.exit()
+try:
+	import Mrc
+except ImportError as e:
+	print 'This program requires the Mrc.py class file for reading .dv files'
+	sys.exit()
+
 
 sentinel = [0]
 currentFileTransfer = str()
 serverBusy = 0
+
+Server = {
+	'busy' : False,
+	'connected' : False
+	'currentFile' : None
+	'progress' : (0,0)
+	'direction' : None
+	'status' : None
+}
 
 
 def make_connection(host=None, user=None):
@@ -767,7 +779,7 @@ def dobatch(mode):
 				item = batchlist.pop(0)
 				print item
 				setRawFile(item)
-				V=entriesValid(silent=True)
+				V = entriesValid(silent=True)
 				if V[0]:
 					print("Batch reconstruction on: %s" % item)
 					serverBusy = 1
