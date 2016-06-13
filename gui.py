@@ -25,7 +25,7 @@ except ImportError as e:
 	print 'This program requires the Mrc.py class file for reading .dv files'
 	sys.exit()
 
-ssh = paramiko.SSHClient()
+sftp = ''
 Server = {
 	'busy' : False,
 	'connected' : False,
@@ -41,7 +41,7 @@ def make_connection(host=None, user=None):
 	if not host: host = server.get()
 	if not user: user = username.get()
 	statusTxt.set("connecting to " + host + "...")
-	global ssh
+	ssh = paramiko.SSHClient()
 	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	# is this necessary?
 	# hostkey = os.path.expanduser(os.path.join("~", ".ssh", "known_hosts"))
@@ -97,7 +97,6 @@ def upload(file, remotepath, mode):
 	The 'mode' command is passed to the updateTranserStatus function
 	to determine which command gets sent to the server after upload
 	"""
-	print 'Uploading: %s' % file
 	ssh = make_connection()
 	if not Server['busy']:
 		# start thread with sftp_put
@@ -122,51 +121,51 @@ def sftp_put(infile, remotepath, ssh):
 	if os.path.basename(remotefile) in sftp.listdir(remotepath) and \
 		sftp.stat(remotefile).st_size == os.stat(infile).st_size:
 			statusTxt.set("File already exists on remote server...")
+			print "File already exists on remote server..."
 	else: # otherwise upload the file
+		sys.stdout.write("Uploading: %s ... " % file)
 		statusTxt.set("copying to server...")
 		Server['status'] = 'transferring'
 		Server['direction'] = 'Uploading'
 		Server['currentFile'] = os.path.basename(remotefile)
 		sftp.put(infile, remotefile, callback=sftp_progress)
+		print 'done!'
 	# in either case, after the file is on the server
 	# change the server status
 	Server['status'] = 'putDone'
 	Server['direction'] = None
-	sftp.close()
+	Server['busy'] = False
+	#sftp.close()
 
 # this is on a separate THREAD
 def sftp_progress(transferred, outof):
 	"""Update global sentinel variable with sftp progress."""
 	global Server
 	Server['progress'] = (transferred, outof)
-	print transferred
 
-
-def download(filelist, ssh):
+def download(filelist):
 	"""Start a thread for sftp.get."""
-	if not ssh:
-		if not ssh.get_transport().isAlive():
-			ssh = make_connection()
 	try:
-		print(" download: %s" % ", ".join(filelist))
 		statusTxt.set("Downloading files from server... ")
-		thr = threading.Thread(target=sftp_get, args=(filelist, ssh))
+		thr = threading.Thread(target=sftp_get, args=(filelist,))
 		thr.start()
-		root.after(400, update_progress, (filelist,))
+		root.after(400, update_progress, (filelist,thr))
 	except Exception as e:
 		print("Error at downloading files!")
 		print(e)
 
+
 # this is on a separate THREAD
-def sftp_get(filelist, ssh):
+def sftp_get(filelist):
 	"""Use paramiko sftp to download a list of files."""
 	# statusTxt.set( "Downloading files...")
 	global Server
+	Server['status'] = 'transferring'
+	ssh = make_connection()
 	Server['busy'] = True
-	sftp = ssh.open_sftp()
 	for file in filelist:
-		print "Downloading: %s" % file
-		Server['status'] = 'transferring'
+		sftp = ssh.open_sftp()
+		sys.stdout.write("Downloading: %s ... " % file)
 		Server['direction'] = 'Downloading'
 		Server['currentFile'] = os.path.basename(file)
 		# local download path pulled from current rawpath
@@ -176,9 +175,14 @@ def sftp_get(filelist, ssh):
 		sftp.get(file,
 			os.path.join(localpath, os.path.basename(file)),
 			callback=sftp_progress)
-	sftp.close()
+		sftp.close()
+		print("done!")
+	#sftp.close()
+	ssh.close()
 	Server['direction'] = None
 	Server['status'] = 'getDone'
+	Server['busy'] = False
+
 
 
 def update_progress(tup):
@@ -196,7 +200,7 @@ def update_progress(tup):
 		statusTxt.set("%s %s: %0.1f of %0.1f MB" %
 			(Server['direction'], Server['currentFile'], float(Server['progress'][0]) / 
 				1000000, float(Server['progress'][1]) / 1000000))
-		root.after(400, update_progress, tup)
+		root.after(300, update_progress, tup)
 	
 	elif Server['status'] == 'putDone':
 		statusTxt.set("Upload finished...")
@@ -211,13 +215,13 @@ def update_progress(tup):
 
 	elif Server['status'] == 'canceled':
 		statusTxt.set("Process canceled... closing server connection")
-		reset_server()
+		#reset_server()
 
 	elif Server['status'] == 'processing':
 		raise ValueError('Unexpected server status: processing')
 
 	else:
-		root.after(400, update_progress, tup)
+		root.after(300, update_progress, tup)
 
 
 def send_command(remotefile, mode):
@@ -263,79 +267,81 @@ def send_command(remotefile, mode):
 		raise ValueError('Uknown command mode...')
 
 
-	if ssh:
-		channel = ssh.invoke_shell()
+	ssh = make_connection()
+	
+	channel = ssh.invoke_shell()
 
-		statusTxt.set("Sending command to remote server...")
-		
-		# send the command to the server
-		channel.send(" ".join([str(s) for s in command]) + '\n')
-		Server['status'] = 'processing'
-		
-		def receive_command_response():
+	Server['busy'] = True
+	Server['status'] = 'processing'
 
-			global Server
+	statusTxt.set("Sending command to remote server...")
+	
+	# send the command to the server
+	channel.send(" ".join([str(s) for s in command]) + '\n')
 
-			if Server['status'] == 'canceled':
-				statusTxt.set("Process canceled... closing server connection")
-				reset_server()
-				return 0
+	
+	def receive_command_response(ssh):
 
-			elif Server['status'] == 'processing':
-				if channel.recv_ready():
-					# if there's something waiting in the queue, read it
-					response = channel.recv(2048)
+		global Server
 
-					if response != '': 
-						statusTxt.set("Receiving feedback from server ... see text area above for details.")
-						r = [r for r in response.splitlines() if r and r != '']
-						textArea.insert(Tk.END, "\n".join(r))
-						textArea.insert(Tk.END, "\n")
-						textArea.yview(Tk.END)
+		if Server['status'] == 'canceled':
+			statusTxt.set("Process canceled... closing server connection")
+			#reset_server()
+			return 0
 
-						if 'Best OTFs:' in r:
-							otfdict = r[r.index('Best OTFs:') + 1]
-							if not isinstance(otfdict, dict):
-								otfdict = literal_eval(otfdict)
-							if isinstance(otfdict, dict):
-								for k, v in otfdict.items():
-									channelOTFPaths[int(k)].set(v)
-									statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
-						
-						if 'Files Ready:' in r:
-							i = r.index('Files Ready:') + 1
-							filelist = []
-							while not r[i].startswith('Done'):
-								filelist.append(r[i].split(": ")[1])
-								i += 1
-							if len(filelist):
-								download(filelist, ssh)
-							# this is where this loop ends... 
-							return
+		elif Server['status'] == 'processing':
+			if channel.recv_ready():
+				# if there's something waiting in the queue, read it
+				response = channel.recv(2048)
+
+				if response != '': 
+					statusTxt.set("Receiving feedback from server ... see text area above for details.")
+					r = [r for r in response.splitlines() if r and r != '']
+					textArea.insert(Tk.END, "\n".join(r))
+					textArea.insert(Tk.END, "\n")
+					textArea.yview(Tk.END)
+
+					if 'Best OTFs:' in r:
+						otfdict = r[r.index('Best OTFs:') + 1]
+						if not isinstance(otfdict, dict):
+							otfdict = literal_eval(otfdict)
+						if isinstance(otfdict, dict):
+							for k, v in otfdict.items():
+								channelOTFPaths[int(k)].set(v)
+								statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
 					
-					if response.endswith(':~$ '):
-						if 'OTFs' not in statusTxt.get():
-							statusTxt.set("Done")
-					
-					elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
-						statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
-					
-					else:
-						# response was empty...
-						root.after(1000, receive_command_response)
-
+					if 'Files Ready:' in r:
+						i = r.index('Files Ready:') + 1
+						filelist = []
+						while not r[i].startswith('Done'):
+							filelist.append(r[i].split(": ")[1])
+							i += 1
+						if len(filelist):
+							download(filelist)
+						# this is where this loop ends... 
+						return
+				
+				if response.endswith(':~$ '):
+					if 'OTFs' not in statusTxt.get():
+						statusTxt.set("Done")
+				
+				elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
+					statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
+				
 				else:
-					# if there's nothing ready to receive, wait another second
-					root.after(1000, receive_command_response)
+					# response was empty...
+					root.after(500, receive_command_response, ssh)
 
 			else:
-				print('Unexpected server status: %s' % Server['status'])
-				raise ValueError('Unexpected server status: %s' % Server['status'])
+				# if there's nothing ready to receive, wait another second
+				root.after(500, receive_command_response, ssh)
 
-		root.after(200, receive_command_response)
-	else:
-		# ssh doesn't exist
-		raise ValueError('Lost ssh connection to server!')
+		else:
+			print('Unexpected server status: %s' % Server['status'])
+			raise ValueError('Unexpected server status: %s' % Server['status'])
+
+	root.after(400, receive_command_response, ssh)
+
 
 
 def activateWaves(waves):
@@ -691,7 +697,7 @@ def getChannelOTF(var):
 			lb.insert(Tk.END, os.path.basename(item))
 		fullist = 1
 
-	def Cancel():
+	def cancelOTF():
 		top.destroy()
 
 	selectButton = Tk.Button(top, text="Select",command=Select, pady=6, padx=10)
@@ -700,7 +706,7 @@ def getChannelOTF(var):
 	cancelButton = Tk.Button(top, text="ShowAll",command=ShowAll, pady=6, padx=10)
 	cancelButton.grid(row=1, column=2)
 
-	cancelButton = Tk.Button(top, text="Cancel",command=Cancel, pady=6, padx=10)
+	cancelButton = Tk.Button(top, text="Cancel",command=cancelOTF, pady=6, padx=10)
 	cancelButton.grid(row=1, column=1)
 	
 	top.update_idletasks()
@@ -808,6 +814,8 @@ def dobatch(mode):
 	and will perform the corresponding task on the provided
 	batch folder
 	"""
+	global Server
+	Server['status'] = None
 	batchlist = []
 	directory = batchDir.get()
 	if not directory:
@@ -820,28 +828,25 @@ def dobatch(mode):
 				batchlist.append(fullpath)
 
 	def callback(mode):
-		global Server
 
 		if Server['busy']:
-			root.after(1500, callback, mode)
+			root.after(700, callback, mode)
 		else:
-			if len(batchlist) == 0:
-				print("Batch reconstruction finished")
-				statusTxt.set("Batch reconstruction finished")
-				
-			elif Server['status'] == 'canceled':
-				print("status canceled")
+			if Server['status'] == 'canceled':
 				statusTxt.set("Batch job canceled... closing server connection")
-				reset_server()
+				#reset_server()
 				return 0
 
+			elif len(batchlist) == 0:
+				print("Batch reconstruction finished")
+				statusTxt.set("Batch reconstruction finished")
+
 			elif Server['status'] == None or Server['status']=='getDone':
-				print("status closed")
 				item = batchlist.pop(0)
 				setRawFile(item)
 				V = entriesValid(silent=True)
 				if V[0]:
-					print("Batch reconstruction on: %s" % item)
+					print("Current File: %s" % item)
 					runReconstruct(mode)
 				else:
 					print("Invalid settings on file: %s" % item)
@@ -852,10 +857,10 @@ def dobatch(mode):
 			else:
 				print("Unexpected server status in batch: %s" % Server['status'])
 
-	if len(batchlist): 
+	if len(batchlist):
+		print("Starting batch on: %s" % directory)
 		callback(mode)
 	else:
-		print("nothing to process")
 		statusTxt.set('No raw SIM files in directory!')
 
 
