@@ -299,6 +299,7 @@ def send_command(remotefile, mode):
 						if isinstance(otfdict, dict):
 							for k, v in otfdict.items():
 								channelOTFPaths[int(k)].set(v)
+								print "Best OTF for %s: %s" %(k,v)
 								statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
 					
 					if 'Files Ready:' in r:
