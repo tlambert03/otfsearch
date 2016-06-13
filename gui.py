@@ -215,7 +215,7 @@ def update_progress(tup):
 		#reset_server()
 
 	elif Server['status'] == 'processing':
-		raise ValueError('Unexpected server status: processing')
+		print('WARNING: Unexpected server status "processing" in update_progress.')
 
 	else:
 		root.after(300, update_progress, tup)
