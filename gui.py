@@ -107,7 +107,7 @@ def upload(file, remotepath, mode):
 		remotefile = os.path.join(remotepath, os.path.basename(file))
 		# then hand control to update_progress loop and 
 		# wait for the appropriate server response
-		root.after(400, update_progress, (remotefile, mode))
+		root.after(600, update_progress, (remotefile, mode))
 	else:
 		print "SERVER NOT READY FOR UPLOAD"
 
@@ -152,7 +152,7 @@ def download(filelist):
 		Server['busy'] = True
 		Server['direction'] = 'Downloading'
 		thr.start()
-		root.after(400, update_progress, (filelist,))
+		root.after(600, update_progress, (filelist,))
 	except Exception as e:
 		print("Error at downloading files!")
 		print(e)
@@ -221,7 +221,7 @@ def update_progress(tup):
 		print('WARNING: Unexpected server status "processing" in update_progress.')
 
 	else:
-		root.after(500, update_progress, tup)
+		root.after(700, update_progress, tup)
 
 
 def send_command(remotefile, mode):
