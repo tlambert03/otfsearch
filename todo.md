@@ -1,4 +1,5 @@
 <!-- features to add -->
+work on cleaning up and formatting response from update_status
 save results to master CSV file
 add opt-out button for scoring
 allow single image registration option without reconstruction
@@ -7,6 +8,7 @@ add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct
 add ability to subsection Z-divs
+allow option to only do optimized search for first file in batch
 
 <!-- nice but low priority -->
 calculate more things for score dict...
