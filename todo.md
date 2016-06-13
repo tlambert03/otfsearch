@@ -4,11 +4,13 @@ save results to master CSV file
 add opt-out button for scoring
 allow single image registration option without reconstruction
 allow to create batch job for just image registration
+allow batch process for max projection only 
+
 add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct
-add ability to subsection Z-divs
 allow option to only do optimized search for first file in batch
+
 
 <!-- nice but low priority -->
 calculate more things for score dict...
@@ -26,6 +28,7 @@ rethink where stuff goes on configuration tab and others
 add more help
 consider using a smart regisatration file choice
 	create dictionary of regisration files that knows waves, daves, et...
+add ability to subsection Z-divs
 
 <!-- bugs -->
 OTF and SIR config directories should poll the server, not local
