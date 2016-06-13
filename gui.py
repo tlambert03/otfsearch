@@ -201,7 +201,10 @@ def update_progress(tup):
 	
 	elif Server['status'] == 'putDone':
 		statusTxt.set("Upload finished...")
-		send_command(tup[0], tup[1])
+		try:
+			send_command(tup[0], tup[1])
+		except IndexError:
+			print "WARNING: send_command failed: index out of range"
 
 	elif Server['status'] == 'getDone':
 		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
