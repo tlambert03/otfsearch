@@ -108,7 +108,6 @@ def upload(file, remotepath, mode):
 		root.after(400, update_progress, (remotefile, mode))
 	else:
 		print "SERVER NOT READY FOR UPLOAD"
-		print Server['status']
 
 # this is on a separate THREAD
 def sftp_put(infile, remotepath, ssh):
@@ -123,7 +122,7 @@ def sftp_put(infile, remotepath, ssh):
 			statusTxt.set("File already exists on remote server...")
 			print "File already exists on remote server..."
 	else: # otherwise upload the file
-		sys.stdout.write("Uploading: %s ... " % file)
+		sys.stdout.write("Uploading: %s ... " % infile)
 		statusTxt.set("copying to server...")
 		Server['status'] = 'transferring'
 		Server['direction'] = 'Uploading'
@@ -163,18 +162,16 @@ def sftp_get(filelist):
 	Server['status'] = 'transferring'
 	ssh = make_connection()
 	Server['busy'] = True
-	for file in filelist:
+	for f in filelist:
 		sftp = ssh.open_sftp()
-		sys.stdout.write("Downloading: %s ... " % file)
+		sys.stdout.write("Downloading: %s ... " % f)
 		Server['direction'] = 'Downloading'
-		Server['currentFile'] = os.path.basename(file)
+		Server['currentFile'] = os.path.basename(f)
 		# local download path pulled from current rawpath
 		# this could lead to problems if the user changes 
 		# it in the meantime...
 		localpath = os.path.dirname(rawFilePath.get())
-		sftp.get(file,
-			os.path.join(localpath, os.path.basename(file)),
-			callback=sftp_progress)
+		sftp.get(f, os.path.join(localpath, os.path.basename(f)), callback=sftp_progress)
 		sftp.close()
 		print("done!")
 	#sftp.close()
@@ -264,7 +261,7 @@ def send_command(remotefile, mode):
 				command.extend(['-f', "=".join([str(c), str(forceChannels[c].get())])])
 
 	else:
-		raise ValueError('Uknown command mode...')
+		raise ValueError('Uknown command mode: %s' % mode)
 
 
 	ssh = make_connection()
