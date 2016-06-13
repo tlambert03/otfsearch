@@ -97,10 +97,12 @@ def upload(file, remotepath, mode):
 	The 'mode' command is passed to the updateTranserStatus function
 	to determine which command gets sent to the server after upload
 	"""
-	ssh = make_connection()
 	if not Server['busy']:
 		# start thread with sftp_put
-		thr = threading.Thread(target=sftp_put, args=(file, remotepath, ssh))
+		thr = threading.Thread(target=sftp_put, args=(file, remotepath))
+		Server['status'] = 'transferring'
+		Server['direction'] = 'Uploading'
+		Server['busy'] = True
 		thr.start()
 		remotefile = os.path.join(remotepath, os.path.basename(file))
 		# then hand control to update_progress loop and 
@@ -110,10 +112,10 @@ def upload(file, remotepath, mode):
 		print "SERVER NOT READY FOR UPLOAD"
 
 # this is on a separate THREAD
-def sftp_put(infile, remotepath, ssh):
+def sftp_put(infile, remotepath):
 	"""Use paramiko sftp to upload infile to remotepath."""
 	global Server
-	Server['busy'] = True
+	ssh = make_connection()
 	sftp = ssh.open_sftp()
 	remotefile = os.path.join(remotepath, os.path.basename(infile))
 	# if the file already exists on the server, don't upload
@@ -124,8 +126,6 @@ def sftp_put(infile, remotepath, ssh):
 	else: # otherwise upload the file
 		sys.stdout.write("Uploading: %s ... " % infile)
 		statusTxt.set("copying to server...")
-		Server['status'] = 'transferring'
-		Server['direction'] = 'Uploading'
 		Server['currentFile'] = os.path.basename(remotefile)
 		sftp.put(infile, remotefile, callback=sftp_progress)
 		print 'done!'
@@ -135,6 +135,7 @@ def sftp_put(infile, remotepath, ssh):
 	Server['direction'] = None
 	Server['busy'] = False
 	sftp.close()
+	ssh.close()
 
 # this is on a separate THREAD
 def sftp_progress(transferred, outof):
@@ -147,8 +148,11 @@ def download(filelist):
 	try:
 		statusTxt.set("Downloading files from server... ")
 		thr = threading.Thread(target=sftp_get, args=(filelist,))
+		Server['status'] = 'transferring'
+		Server['busy'] = True
+		Server['direction'] = 'Downloading'
 		thr.start()
-		root.after(400, update_progress, (filelist,thr))
+		root.after(400, update_progress, (filelist,))
 	except Exception as e:
 		print("Error at downloading files!")
 		print(e)
@@ -159,22 +163,18 @@ def sftp_get(filelist):
 	"""Use paramiko sftp to download a list of files."""
 	# statusTxt.set( "Downloading files...")
 	global Server
-	Server['status'] = 'transferring'
 	ssh = make_connection()
-	Server['busy'] = True
+	sftp = ssh.open_sftp()
 	for f in filelist:
-		sftp = ssh.open_sftp()
 		sys.stdout.write("Downloading: %s ... " % f)
-		Server['direction'] = 'Downloading'
 		Server['currentFile'] = os.path.basename(f)
 		# local download path pulled from current rawpath
 		# this could lead to problems if the user changes 
 		# it in the meantime...
 		localpath = os.path.dirname(rawFilePath.get())
 		sftp.get(f, os.path.join(localpath, os.path.basename(f)), callback=sftp_progress)
-		sftp.close()
 		print("done!")
-	#sftp.close()
+	sftp.close()
 	ssh.close()
 	Server['direction'] = None
 	Server['status'] = 'getDone'
@@ -197,7 +197,7 @@ def update_progress(tup):
 		statusTxt.set("%s %s: %0.1f of %0.1f MB" %
 			(Server['direction'], Server['currentFile'], float(Server['progress'][0]) / 
 				1000000, float(Server['progress'][1]) / 1000000))
-		root.after(300, update_progress, tup)
+		root.after(500, update_progress, tup)
 	
 	elif Server['status'] == 'putDone':
 		statusTxt.set("Upload finished...")
@@ -218,7 +218,7 @@ def update_progress(tup):
 		print('WARNING: Unexpected server status "processing" in update_progress.')
 
 	else:
-		root.after(300, update_progress, tup)
+		root.after(500, update_progress, tup)
 
 
 def send_command(remotefile, mode):
