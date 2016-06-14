@@ -86,7 +86,7 @@ if args['doreg'] and numWaves>1: # perform channel registration
 	#print "perfoming channel registration in matlab..."
 	regFile = args['regfile']
 	if not regFile:
-			regFile = pickRegFile(fname,args['regdir']):
+			regFile = pickRegFile(fname,args['regdir'])
 	registeredFile, maxProj = matlabReg(reconstructed,regFile,args['refchannel'],args['domax']) # will be a list
 
 # cleanup the file that was made
