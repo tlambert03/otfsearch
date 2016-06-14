@@ -604,6 +604,25 @@ def matlabReg(fname,regFile,refChannel,doMax):
 		maxProj = None
 	return (registeredFile, maxProj)
 
+def pickRegFile(fname,directory,filestring=None):
+	filelist = sorted(os.listdir(directory), key=lambda x: x.split("_")[1], reverse=True)
+	reader = Mrc.open(fname) 
+	imWaves = [i for i in reader.hdr.wave if i != 0]
+	for f in filelist:
+		fileWaves = [int(w) for w in f.split('waves')[1].split('_')[0].split('-')]
+		if set(imWaves).issubset(set(fileWaves)):
+			if filestring:
+				if filestring in f:
+					return f
+			else:
+				return f
+
+	# should add another bit to check whether the .mat file has that channel as
+	# a reference channel... 
+	# if the regile has "refs" in the filename, it means that not all wavelengths
+	# are referenced to all other wavelengths (otherwise, that can be assumed)
+	return 0
+
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
 							maxNum=config.maxNum, writeCSV=config.writeCSV, OTFdir=config.OTFdir, 

@@ -13,6 +13,8 @@ import threading
 from functools import partial
 from ast import literal_eval
 import socket
+import time
+
 try:
 	import paramiko
 except ImportError as e:
@@ -31,7 +33,6 @@ Server = {
 	'connected' : False,
 	'currentFile' : None,
 	'progress' : (0,0),
-	'direction' : None,
 	'status' : None, # transferring, putDone, getDone, processing, canceled
 }
 
@@ -79,7 +80,6 @@ def reset_server():
 	#Server['connected'] = False
 	Server['busy'] = False
 	Server['currentFile'] = None
-	Server['direction'] = None
 	Server['status'] = None
 
 def test_connect():
@@ -100,14 +100,13 @@ def upload(file, remotepath, mode):
 	if not Server['busy']:
 		# start thread with sftp_put
 		thr = threading.Thread(target=sftp_put, args=(file, remotepath))
-		Server['status'] = 'transferring'
-		Server['direction'] = 'Uploading'
+		Server['status'] = 'uploading'
 		Server['busy'] = True
 		thr.start()
 		remotefile = os.path.join(remotepath, os.path.basename(file))
-		# then hand control to update_progress loop and 
+		# then hand control to upload_watcher loop and 
 		# wait for the appropriate server response
-		root.after(600, update_progress, (remotefile, mode))
+		root.after(200, upload_watcher, (remotefile, mode))
 	else:
 		print "SERVER NOT READY FOR UPLOAD"
 
@@ -131,11 +130,10 @@ def sftp_put(infile, remotepath):
 		print 'done!'
 	# in either case, after the file is on the server
 	# change the server status
-	Server['status'] = 'putDone'
-	Server['direction'] = None
-	Server['busy'] = False
 	sftp.close()
 	ssh.close()
+	Server['status'] = 'putDone'
+	Server['busy'] = False
 
 # this is on a separate THREAD
 def sftp_progress(transferred, outof):
@@ -148,11 +146,10 @@ def download(filelist):
 	try:
 		statusTxt.set("Downloading files from server... ")
 		thr = threading.Thread(target=sftp_get, args=(filelist,))
-		Server['status'] = 'transferring'
+		Server['status'] = 'downloading'
 		Server['busy'] = True
-		Server['direction'] = 'Downloading'
 		thr.start()
-		root.after(600, update_progress, (filelist,))
+		root.after(200, download_watcher, (filelist,))
 	except Exception as e:
 		print("Error at downloading files!")
 		print(e)
@@ -176,13 +173,41 @@ def sftp_get(filelist):
 		print("done!")
 	sftp.close()
 	ssh.close()
-	Server['direction'] = None
 	Server['status'] = 'getDone'
-	Server['busy'] = False
+
+
+def upload_watcher(tup):
+	"""
+	Update status bar with file transfer progress.
+
+	This function servers as a checkpoint for sftp_put and sftp_get and
+	yields control to send a command to process files when ready.
+
+	tup == (remote file, mode) ( where mode = single | optimal | registerCal).
+	"""
+
+	if Server['status'] == 'canceled':
+		statusTxt.set("Process canceled... closing server connection")
+		# not doing anything here lets the process die...
+		# but won't stop any current uploads/downloads
+
+	elif Server['status'] == 'uploading':
+		statusTxt.set("Uploading %s: %0.1f of %0.1f MB" %
+			(Server['currentFile'], float(Server['progress'][0]) / 
+				1000000, float(Server['progress'][1]) / 1000000))
+		root.after(200, upload_watcher, tup)
+
+	elif Server['status'] == 'putDone':
+		statusTxt.set("Upload finished...")
+		print "Sending '%s' command to server" % tup[1]
+		send_command(tup[0], tup[1])
+
+	else:
+		pass
 
 
 
-def update_progress(tup):
+def download_watcher(tup):
 	"""
 	Update status bar with file transfer progress.
 
@@ -193,35 +218,25 @@ def update_progress(tup):
 	"""
 	global Server
 
-	if Server['status'] == 'transferring':
-		statusTxt.set("%s %s: %0.1f of %0.1f MB" %
-			(Server['direction'], Server['currentFile'], float(Server['progress'][0]) / 
+	if Server['status'] == 'canceled':
+		statusTxt.set("Process canceled... closing server connection")
+		# not doing anything here lets the process die...
+		# but won't stop any current uploads/downloads
+
+	elif Server['status'] == 'downloading':
+		statusTxt.set("Downloading %s: %0.1f of %0.1f MB" %
+			(Server['currentFile'], float(Server['progress'][0]) / 
 				1000000, float(Server['progress'][1]) / 1000000))
-		root.after(500, update_progress, tup)
-	
-	elif Server['status'] == 'putDone':
-		statusTxt.set("Upload finished...")
-		try:
-			send_command(tup[0], tup[1])
-		except IndexError:
-			print "WARNING: send_command failed: index out of range"
+		root.after(200, download_watcher, tup)
 
 	elif Server['status'] == 'getDone':
 		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
 		Server['busy'] = False
 		Server['currentFile'] = None
-		Server['direction'] = None
-		Server['status'] = 'getDone'
-
-	elif Server['status'] == 'canceled':
-		statusTxt.set("Process canceled... closing server connection")
-		#reset_server()
-
-	elif Server['status'] == 'processing':
-		print('WARNING: Unexpected server status "processing" in update_progress.')
+		# this is likely the completion of the entire loop...
 
 	else:
-		root.after(700, update_progress, tup)
+		pass
 
 
 def send_command(remotefile, mode):
@@ -277,7 +292,6 @@ def send_command(remotefile, mode):
 	
 	def receive_command_response(ssh):
 
-		global Server
 		if Server['status'] == 'canceled':
 			statusTxt.set("Process canceled...")
 			#reset_server()
@@ -319,23 +333,24 @@ def send_command(remotefile, mode):
 				if response.endswith(':~$ '):
 					if 'OTFs' not in statusTxt.get():
 						statusTxt.set("Done")
+
 				
 				elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 					statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
 				
 				else:
 					# response was empty...
-					root.after(500, receive_command_response, ssh)
+					root.after(300, receive_command_response, ssh)
 
 			else:
 				# if there's nothing ready to receive, wait another second
-				root.after(500, receive_command_response, ssh)
+				root.after(300, receive_command_response, ssh)
 
 		else:
 			print('Unexpected server status: %s' % Server['status'])
 			raise ValueError('Unexpected server status: %s' % Server['status'])
 
-	root.after(400, receive_command_response, ssh)
+	root.after(300, receive_command_response, ssh)
 
 
 
@@ -810,7 +825,10 @@ def dobatch(mode):
 	batch folder
 	"""
 	global Server
-	Server['status'] = None
+
+	if Server['status'] == 'canceled':
+		Server['status'] = None # this is here in case the last button pressed was cancel
+
 	batchlist = []
 	directory = batchDir.get()
 	if not directory:
@@ -832,26 +850,26 @@ def dobatch(mode):
 				#reset_server()
 				return 0
 
-			elif len(batchlist) == 0:
-				print("Batch reconstruction finished")
-				statusTxt.set("Batch reconstruction finished")
-
 			elif Server['status'] == None or Server['status']=='getDone':
-				item = batchlist.pop(0)
-				setRawFile(item)
-				V = entriesValid(silent=True)
-				if V[0]:
-					print("Current File: %s" % item)
-					runReconstruct(mode)
+				if len(batchlist) == 0:
+					print("Batch reconstruction finished")
+					statusTxt.set("Batch reconstruction finished")
 				else:
-					print("Invalid settings on file: %s" % item)
-					textArea.insert(Tk.END, "Batch job skipping file: %s\n" % item)
-					[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
-					textArea.insert(Tk.END, "\n")
-				callback(mode)
+					item = batchlist.pop(0)
+					setRawFile(item)
+					V = entriesValid(silent=True)
+					if V[0]:
+						print("Current File: %s" % item)
+						runReconstruct(mode)
+					else:
+						print("Invalid settings on file: %s" % item)
+						textArea.insert(Tk.END, "Batch job skipping file: %s\n" % item)
+						[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
+						textArea.insert(Tk.END, "\n")
+					root.after(600, callback, mode)
 			else:
 				print("Unexpected server status in batch job: %s" % Server['status'])
-				callback(mode)
+				root.after(600, callback, mode)
 
 	if len(batchlist):
 		print("Starting batch on: %s" % directory)
