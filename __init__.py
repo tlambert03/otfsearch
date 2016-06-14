@@ -626,7 +626,7 @@ def pickRegFile(fname,directory,filestring=None):
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
 							maxNum=config.maxNum, writeCSV=config.writeCSV, OTFdir=config.OTFdir, 
-							reconWaves=None, forceChannels=None, regFile=config.regFile, 
+							reconWaves=None, forceChannels=None, regFile=None, regdir=config.regFileDir,
 							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
 	if not isRawSIMfile(fname):
@@ -647,6 +647,8 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	maxProj = None
 	if doReg and numWaves>1: # perform channel registration
 		if verbose: print "perfoming channel registration in matlab..."
+		if not regFile:
+			regFile = pickRegFile(fname,regdir):
 		registeredFile, maxProj = matlabReg(reconstructed,regFile,refChannel,doMax) # will be a list
 	elif doMax:
 		maxProj = maxprj(reconstructed)

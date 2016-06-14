@@ -25,7 +25,8 @@ if __name__ == '__main__':
 	parser.add_argument('-c','--channels', help='channels to process (sep by spaces)', default=None, nargs="*", type=goodChannel, metavar='CHAN')
 	#parser.add_argument('-f','--forceotf', help='force wavelength to use specified OTF wavelength. provided as space-seperated list of comma-seperated pairs: e.g. 528,528', nargs="*")
 	parser.add_argument('--otfdir', help='OTF directory', default=config.OTFdir, metavar='')
-	parser.add_argument('--regfile', help='Registration File', default=config.regFile, metavar='')
+	parser.add_argument('--regfile', help='Registration File', default=None, metavar='')
+	parser.add_argument('--regdir', help='Directory with Reg Files', default=config.regFileDir, metavar='')
 	parser.add_argument('-r','--refchannel', help='reference channel for channel registration', default=config.refChannel, type=goodChannel)
 	parser.add_argument('-x','--domax', help='perform max projection after registration', type=bool, default=config.doMax)
 	parser.add_argument('-g','--doreg', help='perform channel registration', default=config.doReg)
@@ -41,7 +42,7 @@ if __name__ == '__main__':
 
 	bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestReconstruction(args['inputFile'].name, 
 		cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], maxAge=args['age'], maxNum=args['num'], 
-		OTFdir=args['otfdir'], reconWaves=args['channels'], forceChannels=forceOTFdict, regFile=args['regfile'], 
+		OTFdir=args['otfdir'], reconWaves=args['channels'], forceChannels=forceOTFdict, regFile=args['regfile'], regdir=args['regdir'], 
 		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeCSV=args['writefile'], cleanup=True, verbose=True,)
 
 	# THIS IS NOT JUST FOR READOUT

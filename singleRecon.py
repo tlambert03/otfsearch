@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import config
-from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime, isRawSIMfile, query_yes_no, matlabReg
+from __init__ import reconstructMulti, goodChannel, cropCheck, cropTime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile
 import Mrc
 
 def otfAssignment(string):
@@ -29,7 +29,8 @@ parser.add_argument('--configDir', help='Director with config files', default=co
 parser.add_argument('-w','--wiener', help='Wiener constant', default=None, type=float)
 parser.add_argument('-t','--time', help='Cut to first N timepoints', default=None, type=int)
 #parser.add_argument('-p','--crop', help='ROI crop size to use for testing', default=config.cropsize, type=cropCheck)
-parser.add_argument('--regfile', help='Registration File', default=config.regFile, metavar='FILE')
+parser.add_argument('--regfile', help='Registration File', default=None, metavar='FILE')
+parser.add_argument('--regdir', help='Directory with Reg files', default=config.regFile, metavar='FILE')
 parser.add_argument('-r','--refchannel', help='reference channel for channel registration', 
 				default=config.refChannel, type=goodChannel)
 parser.add_argument('-x','--domax', help='perform max projection after registration', default=False, action='store_true')
@@ -83,7 +84,10 @@ maxProj=None
 
 if args['doreg'] and numWaves>1: # perform channel registration
 	#print "perfoming channel registration in matlab..."
-	registeredFile, maxProj = matlabReg(reconstructed,args['regfile'],args['refchannel'],args['domax']) # will be a list
+	regFile = args['regfile']
+	if not regFile:
+			regFile = pickRegFile(fname,args['regdir']):
+	registeredFile, maxProj = matlabReg(reconstructed,regFile,args['refchannel'],args['domax']) # will be a list
 
 # cleanup the file that was made
 if timecropped:
