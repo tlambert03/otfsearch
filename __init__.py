@@ -648,7 +648,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	if doReg and numWaves>1: # perform channel registration
 		if verbose: print "perfoming channel registration in matlab..."
 		if not regFile:
-			regFile = pickRegFile(fname,regdir):
+			regFile = pickRegFile(fname,regdir)
 		registeredFile, maxProj = matlabReg(reconstructed,regFile,refChannel,doMax) # will be a list
 	elif doMax:
 		maxProj = maxprj(reconstructed)
