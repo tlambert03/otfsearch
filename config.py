@@ -45,13 +45,17 @@ oilMax = 1522
 # whether to save the CSV file after scoring all the OTFS
 writeCSV = True
 
+wiener = 0.001
+
+background = 90
+
 # REGISTRATION AND POST-RECONSTRUCTION PROCESSING
 # perform channel registration by default
 doReg = False
 # perform max projection by default
 doMax = False
 # name of matlab registration function (must be on MATLAB path)
-MatlabRegScript = 'OMXreg2'
+MatlabRegScript = 'omxreg'
 # default reference channel for registration
 refChannel = 528
 # default matlab regisration file to use
@@ -60,7 +64,7 @@ regFile = '/mnt/data0/MATLAB/talley/OMXwarp/OMXreg_160323_speck.mat'
 regFileDir = '/mnt/data0/regfiles/'
 
 # name of matlab registration calibration function (must be on MATLAB path)
-MatlabTformCalc = 'OMXregCal'
+MatlabTformCalc = 'omxregcal'
 # default number of iterations for calibration for GUI
 CalibrationIter = 10000
 

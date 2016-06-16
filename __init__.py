@@ -6,7 +6,6 @@ import Mrc
 import numpy as np
 from scipy import stats
 import config
-import math
 
 # OTF handling functions
 

@@ -656,7 +656,7 @@ for i in range(len(allwaves)):
 
 Tk.Label(singleReconFrame, text='Wiener constant:').grid(row=0, sticky='e')
 wiener = Tk.StringVar()
-wiener.set('')
+wiener.set(C.wiener)
 wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15)
 wienerEntry.grid(row=0, column=1, sticky='W')
 
