@@ -404,6 +404,18 @@ def entriesValid(silent=False):
 			errors.append(["Registration Settings Error","Reference channel must be one of the following:" + " ".join([str(w) for w in waves])])
 		if not RegFile.get().strip():
 			errors.append(["Registration File Error","Please select a registration file in the registration tab"])
+
+		try: 
+			regwaves = os.path.basename(RegFile.get()).split('waves')[1].split('_')[0].split('-')
+			# could potentially try to read the matlab file directly with something like:
+			# import scipy.io
+			# mat = scipy.io.loadmat(RegFile.get())
+			# regwaves = mat.get('R')[0][0][6][0][0][0][0]
+			if not RefChannel.get() in regwaves:
+				errors.append(["Registration File Error","The selected reference channel does not exist in the registration file. Please either change the registration file or the reference channel"])
+		except:
+			errors.append(["Registration File Error","Cannot parse registration file name... for now, the filename must include 'waves_'... etc"])
+		
 	selectedchannels = [key for key, val in channelSelectVars.items() if val.get() == 1]
 	if len(selectedchannels) == 0:
 		errors.append(["Input Error","You must select at least one channel to reconstruct:"])
@@ -525,7 +537,7 @@ Style().theme_use('clam')
 
 otfsearchFrame = Tk.Frame(Nb)
 singleReconFrame = Tk.Frame(Nb)
-configFrame = Tk.Frame(Nb)
+serverFrame = Tk.Frame(Nb)
 batchFrame = Tk.Frame(Nb)
 registrationFrame = Tk.Frame(Nb)
 helpFrame = Tk.Frame(Nb)
@@ -534,7 +546,7 @@ Nb.add(otfsearchFrame, text='Optimized Reconstruction')
 Nb.add(singleReconFrame, text='Specify OTFs')
 Nb.add(registrationFrame, text='Channel Registration')
 Nb.add(batchFrame, text='Batch')
-Nb.add(configFrame, text='Configuration')
+Nb.add(serverFrame, text='Server')
 Nb.add(helpFrame, text='Help')
 
 textAreaFrame = Tk.Frame(root, bg='gray', bd=2)
@@ -763,49 +775,53 @@ def sendRegCal():
 	upload(inputfile, C.remotepath, 'registerCal')
 
 
-Tk.Label(registrationFrame, text='Calibration Image:').grid(row=0, sticky='e')
-regCalImage = Tk.StringVar()
-regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=35).grid(row=0, column=1, columnspan=5, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Registration Image", command = getregCalImage).grid(row=0, column=3, ipady=3, ipadx=10, padx=2, stick='w')
+Tk.Label(registrationFrame, text='Apply registration to image file', font=('Arial', 13, 'bold')).grid(row=0, columnspan=4, sticky='w')
 
-Tk.Label(registrationFrame, text='Iterations:').grid(row=1, sticky='e')
+Tk.Label(registrationFrame, text='Registration File:').grid(row=1, sticky='e')
+RegFile = Tk.StringVar()
+RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile, width=43).grid(row=1, column=1, columnspan=6, sticky='W')
+chooseRegFileButton = Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=3, ipady=3, ipadx=10, padx=2, sticky='w')
+RegFile.set( C.regFile )
+
+Tk.Label(registrationFrame, text='Calibrate registration', font=('Arial', 13, 'bold')).grid(row=2, columnspan=4, sticky='w',pady=(20,0))
+
+Tk.Label(registrationFrame, text='Calibration Image:').grid(row=3, sticky='e')
+regCalImage = Tk.StringVar()
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=3, column=1, columnspan=5, sticky='W')
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=3, column=3, ipady=3, ipadx=10, padx=2, stick='w')
+
+Tk.Label(registrationFrame, text='Iterations:').grid(row=4, sticky='e')
 calibrationIterations = Tk.IntVar()
-calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=35).grid(row=1, column=1, columnspan=2, sticky='W')
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Perform Registration Calibration", command = sendRegCal).grid(row=1, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=4, column=1, columnspan=2, sticky='W')
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=4, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
 calibrationIterations.set(C.CalibrationIter)
 
 # CONFIG TAB
 
-Tk.Label(configFrame, text='OTF Directory:').grid(row=0, sticky='e')
+Tk.Label(serverFrame, text='OTF Directory:').grid(row=0, sticky='e')
 OTFdir = Tk.StringVar()
-OTFdirEntry = Tk.Entry(configFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
-chooseOTFdirButton = Tk.Button(configFrame, text ="Choose Dir", command = getOTFdir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
+OTFdirEntry = Tk.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+#chooseOTFdirButton = Tk.Button(serverFrame, text ="Choose Dir", command = getOTFdir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 OTFdir.set(C.OTFdir )
 
-Tk.Label(configFrame, text='SIR config Dir:').grid(row=1, sticky='e')
+Tk.Label(serverFrame, text='SIR config Dir:').grid(row=1, sticky='e')
 SIRconfigDir = Tk.StringVar()
-SIRconfigDirEntry = Tk.Entry(configFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
-chooseSIRconfigdirButton = Tk.Button(configFrame, text ="Choose Dir", command = getSIRconfigDir).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
+SIRconfigDirEntry = Tk.Entry(serverFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
+#chooseSIRconfigdirButton = Tk.Button(serverFrame, text ="Choose Dir", command = getSIRconfigDir).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
 SIRconfigDir.set( C.SIconfigDir )
 
-Tk.Label(configFrame, text='Registration File:').grid(row=2, sticky='e')
-RegFile = Tk.StringVar()
-RegFileEntry = Tk.Entry(configFrame, textvariable=RegFile, width=48).grid(row=2, column=1, columnspan=6, sticky='W')
-chooseRegFileButton = Tk.Button(configFrame, text ="Choose File", command = getRegFile).grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
-RegFile.set( C.regFile )
-
-Tk.Label(configFrame, text='Server Address:').grid(row=3, sticky='e')
+Tk.Label(serverFrame, text='Server Address:').grid(row=3, sticky='e')
 server = Tk.StringVar()
-serverEntry = Tk.Entry(configFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
+serverEntry = Tk.Entry(serverFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
 server.set( C.server )
 
-Tk.Label(configFrame, text='Username:').grid(row=4, sticky='e')
+Tk.Label(serverFrame, text='Username:').grid(row=4, sticky='e')
 username = Tk.StringVar()
-usernameEntry = Tk.Entry(configFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
+usernameEntry = Tk.Entry(serverFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
 username.set( C.username )
 
 
-Tk.Button(configFrame, text="Test Connection", command=test_connect,
+Tk.Button(serverFrame, text="Test Connection", command=test_connect,
 	width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
 
 
@@ -813,7 +829,7 @@ Tk.Button(configFrame, text="Test Connection", command=test_connect,
 
 Tk.Label(batchFrame, text='Directory:').grid(row=0, sticky='e')
 batchDir = Tk.StringVar()
-batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=50).grid(row=0, column=1, columnspan=6, sticky='W')
 batchDirButton = Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
 
@@ -881,7 +897,7 @@ def dobatch(mode):
 
 
 Tk.Button(batchFrame, text="Batch Optimized Recon", command=partial(dobatch, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
-Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(dobatch, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='w')
+Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(dobatch, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='e')
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(row=2, column=1, columnspan=6, sticky='e')
 
 # Help Frame
@@ -902,7 +918,7 @@ helpText.insert('insert', 'that you would like to include in the reconstructions
 helpText.insert('insert', 'When you open a new file, the channels will be automatically populated based on the available channels in the image. \n', 'paragraph')
 helpText.insert('insert', '\n')
 helpText.insert('insert', 'Optimized Reconstruction \n', 'heading')
-helpText.insert('insert', 'Use this tab to search the folder of OTFs specified in the configuration tab for the optimal OTF for each channel. ', 'paragraph')
+helpText.insert('insert', 'Use this tab to search the folder of OTFs specified on the server tab for the optimal OTF for each channel. ', 'paragraph')
 helpText.insert('insert', 'Adjust the OTF search parameters in the optimized reconstruction tab and hit the ', 'paragraph')
 helpText.insert('insert', 'Run OTF Search ', 'code')
 helpText.insert('insert', 'button. \n', 'paragraph')
@@ -910,8 +926,8 @@ helpText.insert('insert', '\n')
 helpText.insert('insert', 'Specify OTFs\n', 'heading')
 helpText.insert('insert', 'This tab can be used to specifiy OTFs for each channel present in the file, then perform a single reconstruction. \n ', 'paragraph')
 helpText.insert('insert', '\n')
-helpText.insert('insert', 'Configuration\n', 'heading')
-helpText.insert('insert', 'The configuration specifies important folders used in the reconstructions. \n ', 'paragraph')
+helpText.insert('insert', 'Server\n', 'heading')
+helpText.insert('insert', 'The Server tab specifies important folders on the server used in the reconstructions. \n ', 'paragraph')
 helpText.insert('insert', '\n')
 helpText.insert('insert', "If you are getting bugs or unexpected results, don't hesistate to ask for help!\n", 'italics')
 helpText.insert('insert', '\n')

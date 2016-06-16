@@ -66,7 +66,7 @@ regFileDir = '/mnt/data0/regfiles/'
 # name of matlab registration calibration function (must be on MATLAB path)
 MatlabTformCalc = 'omxregcal'
 # default number of iterations for calibration for GUI
-CalibrationIter = 10000
+CalibrationIter = 2000
 
 # VALIDATION DICTIONARY
 # these are valid choices for the respective settings

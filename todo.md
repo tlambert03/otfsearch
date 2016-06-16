@@ -31,5 +31,3 @@ consider using a smart regisatration file choice
 add ability to subsection Z-divs
 
 <!-- bugs -->
-OTF and SIR config directories should poll the server, not local
-if doReg: make sure that registration file has the appropriate channels
