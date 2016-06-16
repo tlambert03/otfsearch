@@ -249,6 +249,10 @@ def send_command(remotefile, mode):
 		command = ['python', C.remoteRegCalibration, remotefile, '--outpath', C.regFileDir]
 		if calibrationIterations.get(): command.extend(['--iter', calibrationIterations.get()])
 	
+	elif mode == 'register':
+		command = ['python', C.remoteRegScript, remotefile, '-r', RefChannel.get()]
+		if RegFile.get().strip(): command.extend(['--regfile', RegFile.get()])
+	
 	elif mode == 'single':
 		command = ['python', C.remoteSpecificScript, remotefile,
 					'--regfile', RegFile.get(), '-r', RefChannel.get()]
@@ -503,7 +507,8 @@ def cancel():
 	Server['busy'] = False
 	# could be more agressiver here and close ssh
 
-def runReconstruct(mode):
+def processFile(mode):
+	""" where mode = 'optimal', 'single', 'register', or 'registerCal' """
 	inputfile = rawFilePath.get()
 	if not os.path.exists(inputfile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
@@ -644,7 +649,7 @@ OilMaxEntry.grid(row=4, column=1, columnspan=3, sticky='W')
 
 
 Tk.Button(otfsearchFrame, text="Run OTF Search",
-	command=partial(runReconstruct, 'optimal'), width=12).grid(row=8,
+	command=partial(processFile, 'optimal'), width=12).grid(row=8,
 	column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 forceChannels = {}
@@ -756,7 +761,7 @@ for i in range(len(allwaves)):
 	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
 
 
-Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(runReconstruct, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
+Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(processFile, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
 
 
 # REGISTRATION TAB
@@ -775,7 +780,9 @@ def sendRegCal():
 	upload(inputfile, C.remotepath, 'registerCal')
 
 
-Tk.Label(registrationFrame, text='Apply registration to image file', font=('Arial', 13, 'bold')).grid(row=0, columnspan=4, sticky='w')
+Tk.Label(registrationFrame, text='Apply registration to current image file', font=('Arial', 13, 'bold')).grid(row=0, columnspan=4, sticky='w')
+singleRegButton = Tk.Button(registrationFrame, text ="Calibrate", command = command = partial(processFile, 'register')).grid(row=4, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+
 
 Tk.Label(registrationFrame, text='Registration File:').grid(row=1, sticky='e')
 RegFile = Tk.StringVar()
@@ -876,7 +883,7 @@ def dobatch(mode):
 					V = entriesValid(silent=True)
 					if V[0]:
 						print("Current File: %s" % item)
-						runReconstruct(mode)
+						processFile(mode)
 					else:
 						print("Invalid settings on file: %s" % item)
 						textArea.insert(Tk.END, "Batch job skipping file: %s\n" % item)

@@ -4,6 +4,7 @@ save results to master CSV file
 add opt-out button for scoring
 allow single image registration option without reconstruction
 allow to create batch job for just image registration
+make regfile optional in gui
 allow batch process for max projection only 
 
 add options to channel registration calibration command

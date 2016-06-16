@@ -13,6 +13,8 @@ remotepath = '/mnt/data0/remote/'
 remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/__main__.py'
 # script to trigger single recon with specific OTFs
 remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
+# script to trigger single registration with specific OTFs
+remoteRegScript = '/mnt/data0/SIMrecon/otfsearch/register.py'
 # script to trigger channel registration calibration
 remoteRegCalibration = '/mnt/data0/SIMrecon/otfsearch/calculateMatlabTform.py'
 # directory with all the OTFs
