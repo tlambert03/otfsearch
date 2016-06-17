@@ -230,7 +230,7 @@ def download_watcher(tup):
 		root.after(200, download_watcher, tup)
 
 	elif Server['status'] == 'getDone':
-		statusTxt.set("Download finished... Best OTFs copied to Specify OTFs tab")
+		statusTxt.set("Download finished!")
 		Server['busy'] = False
 		Server['currentFile'] = None
 		# this is likely the completion of the entire loop...

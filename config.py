@@ -61,7 +61,7 @@ MatlabRegScript = 'omxreg'
 # default reference channel for registration
 refChannel = 528
 # default matlab regisration file to use
-regFile = '/mnt/data0/MATLAB/talley/OMXwarp/OMXreg_160323_speck.mat'
+regFile = '/mnt/data0/regfiles/OMXreg_160608_waves435-528-608-683_grid.mat'
 # directory containing registration files (and where they will be saved to by default)
 regFileDir = '/mnt/data0/regfiles/'
 
