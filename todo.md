@@ -32,3 +32,6 @@ consider using a smart regisatration file choice
 add ability to subsection Z-divs
 
 <!-- bugs -->
+
+
+invalid switch for -nimm in makeotf when nimm!=1.515...

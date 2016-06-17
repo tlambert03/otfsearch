@@ -294,6 +294,13 @@ def send_command(remotefile, mode):
 	# send the command to the server
 	channel.send(" ".join([str(s) for s in command]) + '\n')
 	
+	junkresponses = ['[?1h=','[?1h=','[?1l>','[?1l>',
+				'To get started, type one of these: helpwin, helpdesk, or demo.',
+				'For product information, visit www.mathworks.com.',
+				'	Academic License','Priism 4.4.0 set up; type Priism to run it',
+				' * Documentation:  https://help.ubuntu.com/',
+				'                  Copyright 1984-2016 The MathWorks, Inc.']
+
 	def receive_command_response(ssh):
 
 		if Server['status'] == 'canceled':
@@ -309,6 +316,7 @@ def send_command(remotefile, mode):
 				if response != '': 
 					statusTxt.set("Receiving feedback from server ... see text area above for details.")
 					r = [r for r in response.splitlines() if r and r != '']
+					r = filter(lambda a: a not in junkresponses, r)
 					textArea.insert(Tk.END, "\n".join(r))
 					textArea.insert(Tk.END, "\n")
 					textArea.yview(Tk.END)
@@ -336,7 +344,7 @@ def send_command(remotefile, mode):
 				
 				if response.endswith(':~$ '):
 					if 'OTFs' not in statusTxt.get():
-						statusTxt.set("Done")
+						statusTxt.set("Server finished command.")
 
 				
 				elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):

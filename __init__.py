@@ -62,13 +62,29 @@ def cropCheck(string):
 
 # image file manipulation
 
-def callPriism(command):
-	try:
-		subprocess.call(command)
-	except EOFError:
-		msg = "Priism may not be setup correctly...\n"
-		msg += "Source the priism installation and try again"
-		raise EOFError(msg)
+def callPriism(command=None):
+	# must figure out way to add this to path 
+	if not os.environ.has_key('IVE_BASE') and os.path.exists(config.priismpath):
+		P = os.environ['PATH'].split(":")
+		P.insert(0,os.path.join(config.priismpath,'Darwin64/BIN'))
+		os.environ['PATH'] = ":".join(P)
+		os.environ['DYLD_FALLBACK_LIBRARY_PATH'] = ":".join(config.libpath)
+		os.environ['IVE_WORKING_SET']='24000'
+		os.environ['IVE_BASE']=config.priismpath
+		os.environ['LIBQUICKTIME_PLUGIN_DIR']=os.path.join(config.priismpath,os.path.sep.join(['libquicktime','Darwin','lib','libquicktime']))
+		os.environ['IVE_PGTHRESH']='1024'
+		os.environ['IVE_SIZE']='27000'
+		os.environ['IVE_WORKING_UNIT']='128'
+		# IVE_ENV_SETUP={ test -r '/Users/talley/Dropbox/NIC/software/priism-4.4.1/Priism_setup.sh' && . '/Users/talley/Dropbox/NIC/software/priism-4.4.1/Priism_setup.sh' ; } || exit 1
+
+
+	if command:
+		try:
+			subprocess.call(command)
+		except EOFError:
+			msg = "Priism may not be setup correctly...\n"
+			msg += "Source the priism installation and try again"
+			raise EOFError(msg)
 
 def splitChannels(fname, waves=None):
 	reader = Mrc.open(fname) 
@@ -592,6 +608,7 @@ def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 	return results
 
 
+
 def matlabReg(fname,regFile,refChannel,doMax):
 	maxbool = 'true' if doMax else 'false'
 	matlabString = "%s('%s','%s', %d,'DoMax', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool)
@@ -602,6 +619,7 @@ def matlabReg(fname,regFile,refChannel,doMax):
 	else:
 		maxProj = None
 	return (registeredFile, maxProj)
+
 
 def pickRegFile(fname,directory,filestring=None):
 	filelist = sorted(os.listdir(directory), key=lambda x: x.split("_")[1], reverse=True)
@@ -660,6 +678,8 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
 		scoreDF.to_csv(scoreFile)
 
+
+	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
 
 

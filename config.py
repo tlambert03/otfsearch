@@ -1,10 +1,19 @@
 """Configuration File."""
+import os 
 
 # CONNECTION TO REMOTE SERVER
 # this program assumes the use of private keys for authentication
 # https://help.github.com/articles/generating-an-ssh-key/
 server = 'cb-cbmf-latwork.med.harvard.edu'
 username = 'user'
+
+priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
+libpath = [ os.path.join(priismpath,'Darwin64/LIB'),
+			os.path.join(priismpath,'Darwin/LIB'),
+			os.path.join(os.path.expanduser('~'),'lib'),
+			'/usr/local/lib',
+			'/lib',
+			'/usr/lib']
 
 # DIRECTORIES ON THE RECONSTRUCTION SERVER
 # temp folder where files will get uploaded to
@@ -28,10 +37,15 @@ OTFtemplate = 'wavelength_date_oil_medium_angle_beadnum'
 OTFdelim = '_'
 # extension of otf files
 OTFextension = '.otf'
+# app to generate OTF
+makeOTFapp = '/Users/talley/Dropbox/Documents/Python/otfsearch/makeotf'
 # directory with config files for CUDA-SIMrecon reconstruction
 SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
 # path to CUDA-SIMrecon reconstruction app
 reconApp = '/usr/local/bin/sir'
+
+# 
+otfSigRange=[18000,31500]
 
 # OPTMIIZED RECONSTRUCTION PARAMETERS
 # all files will be cropped to this size before reconstruction
@@ -61,7 +75,7 @@ MatlabRegScript = 'omxreg'
 # default reference channel for registration
 refChannel = 528
 # default matlab regisration file to use
-regFile = '/mnt/data0/regfiles/OMXreg_160608_waves435-528-608-683_grid.mat'
+regFile = '/mnt/data0/regfiles/OMXreg_160616_waves435-528-608-683_grid.mat'
 # directory containing registration files (and where they will be saved to by default)
 regFileDir = '/mnt/data0/regfiles/'
 
@@ -77,4 +91,34 @@ valid = {
 	'cropsize': [36, 64, 128, 256, 512, 1024],
 	'oilMin': range(1510, 1530),
 	'oilMax': range(1510, 1530)
+}
+
+spacings = {
+	435 : 0.1920,
+	528 : 0.2035,
+	608 : 0.2075,
+	683 : 0.2200,
+	477 : 0.2290,
+	541 : 0.2400,
+}
+
+nAngles=3
+nPhases=5
+
+angles = {
+	435 : [-0.831000,-1.884600,0.213000],
+	528 : [-0.804300,-1.855500,0.238800],
+	608 : [-0.775600,-1.826500,0.270100],
+	683 : [-0.768500,-1.823400,0.276100],
+	477 : [-0.803400,-1.856900,0.238900],
+	541 : [-0.798300,-1.849100,0.244700]
+}
+
+em2ex = {
+	435 : 405,
+	477 : 445,
+	528 : 488,
+	541 : 514,
+	608 : 568,
+	683 : 642
 }
