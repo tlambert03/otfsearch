@@ -388,7 +388,7 @@ def setRawFile(filename):
 			statusTxt.set('Unable to read file... is it a .dv file?')
 
 
-def entriesValid(silent=False):
+def entriesValid(silent=False, mode=None):
 	errors=[]
 	if maxOTFnum.get():
 		if not maxOTFnum.get().isdigit():
@@ -402,10 +402,11 @@ def entriesValid(silent=False):
 		errors.append(["Optimized Reconstruction Input Error","Oil max must be an integer between 1510 and 1530"])
 	if not cropsize.get().isdigit() or not int(cropsize.get()) in C.valid['cropsize']:
 		errors.append(["Optimized Reconstruction Input Error","Cropsize must be a power of 2 <= 512"])
-	if doReg.get():
+	if doReg.get() or mode=='register':
+		print 'doreg or modereg'
 		waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 		if not int(RefChannel.get()) in waves:
-			errors.append(["Registration Settings Error","Reference channel must be one of the following:" + " ".join([str(w) for w in waves])])
+			errors.append(["Registration Settings Error","Reference channel not in input file.  Must be one of the following:" + " ".join([str(w) for w in waves])])
 		if not RegFile.get().strip():
 			errors.append(["Registration File Error","Please select a registration file in the registration tab"])
 
@@ -419,7 +420,7 @@ def entriesValid(silent=False):
 				errors.append(["Registration File Error","The selected reference channel does not exist in the registration file. Please either change the registration file or the reference channel"])
 		except:
 			errors.append(["Registration File Error","Cannot parse registration file name... for now, the filename must include 'waves_'... etc"])
-		
+
 	selectedchannels = [key for key, val in channelSelectVars.items() if val.get() == 1]
 	if len(selectedchannels) == 0:
 		errors.append(["Input Error","You must select at least one channel to reconstruct:"])
@@ -517,7 +518,7 @@ def processFile(mode):
 		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
 		if response == "no":
 			return 0
-	V = entriesValid()
+	V = entriesValid(mode)
 	if V[0]:
 		upload(inputfile, C.remotepath, mode)
 	else:
@@ -784,24 +785,27 @@ Tk.Label(registrationFrame, text='Apply registration to current image file', fon
 
 Tk.Label(registrationFrame, text='Registration File:').grid(row=1, sticky='e')
 RegFile = Tk.StringVar()
-RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile, width=43).grid(row=1, column=1, columnspan=6, sticky='W')
-chooseRegFileButton = Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=3, ipady=3, ipadx=10, padx=2, sticky='w')
+RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile, width=43).grid(row=1, column=1, columnspan=3, sticky='W')
+chooseRegFileButton = Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=4, ipady=3, ipadx=10, padx=2, sticky='w')
 RegFile.set( C.regFile )
 
-singleRegButton = Tk.Button(registrationFrame, text ="Register Input File", command = partial(processFile, 'register')).grid(row=2, column=1, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+singleRegButton = Tk.Button(registrationFrame, text ="Register Input File", command = partial(processFile, 'register')).grid(row=2, column=1,ipady=3, ipadx=10, padx=2, sticky='w')
 
+Tk.Label(registrationFrame, text='Ref Channel:').grid(row=2, column=2, sticky='e')
+RefChannelEntry = Tk.OptionMenu(registrationFrame, RefChannel, *allwaves)
+RefChannelEntry.grid(row=2, column=3, sticky='W')
 
 Tk.Label(registrationFrame, text='Calibrate registration', font=('Arial', 13, 'bold')).grid(row=3, columnspan=4, sticky='w',pady=(20,0))
 
 Tk.Label(registrationFrame, text='Calibration Image:').grid(row=4, sticky='e')
 regCalImage = Tk.StringVar()
-regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=4, column=1, columnspan=5, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=4, column=3, ipady=3, ipadx=10, padx=2, stick='w')
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=4, column=1, columnspan=3, sticky='W')
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=4, column=4, ipady=3, ipadx=10, padx=2, stick='w')
 
-Tk.Label(registrationFrame, text='Iterations:').grid(row=4, sticky='e')
+Tk.Label(registrationFrame, text='Iterations:').grid(row=5, sticky='e')
 calibrationIterations = Tk.IntVar()
-calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=5, column=1, columnspan=2, sticky='W')
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=5, column=1, columnspan=3, sticky='W')
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=4, columnspan=3, ipady=3, ipadx=10, padx=2, sticky='w')
 calibrationIterations.set(C.CalibrationIter)
 
 # CONFIG TAB
