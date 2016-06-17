@@ -250,7 +250,7 @@ def send_command(remotefile, mode):
 		if calibrationIterations.get(): command.extend(['--iter', calibrationIterations.get()])
 	
 	elif mode == 'register':
-		command = ['python', C.remoteRegScript, remotefile, '-r', RefChannel.get()]
+		command = ['python', C.remoteRegScript, remotefile, '-c', RefChannel.get()]
 		if RegFile.get().strip(): command.extend(['--regfile', RegFile.get()])
 	
 	elif mode == 'single':
@@ -513,7 +513,7 @@ def processFile(mode):
 	if not os.path.exists(inputfile):
 		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
 		return 0
-	if not isRawSIMfile(inputfile):
+	if not mode=='register' and not isRawSIMfile(inputfile):
 		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
 		if response == "no":
 			return 0
@@ -781,8 +781,6 @@ def sendRegCal():
 
 
 Tk.Label(registrationFrame, text='Apply registration to current image file', font=('Arial', 13, 'bold')).grid(row=0, columnspan=4, sticky='w')
-singleRegButton = Tk.Button(registrationFrame, text ="Calibrate", command = command = partial(processFile, 'register')).grid(row=4, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
-
 
 Tk.Label(registrationFrame, text='Registration File:').grid(row=1, sticky='e')
 RegFile = Tk.StringVar()
@@ -790,17 +788,20 @@ RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile, width=43).grid(
 chooseRegFileButton = Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=3, ipady=3, ipadx=10, padx=2, sticky='w')
 RegFile.set( C.regFile )
 
-Tk.Label(registrationFrame, text='Calibrate registration', font=('Arial', 13, 'bold')).grid(row=2, columnspan=4, sticky='w',pady=(20,0))
+singleRegButton = Tk.Button(registrationFrame, text ="Register Input File", command = partial(processFile, 'register')).grid(row=2, column=1, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
 
-Tk.Label(registrationFrame, text='Calibration Image:').grid(row=3, sticky='e')
+
+Tk.Label(registrationFrame, text='Calibrate registration', font=('Arial', 13, 'bold')).grid(row=3, columnspan=4, sticky='w',pady=(20,0))
+
+Tk.Label(registrationFrame, text='Calibration Image:').grid(row=4, sticky='e')
 regCalImage = Tk.StringVar()
-regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=3, column=1, columnspan=5, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=3, column=3, ipady=3, ipadx=10, padx=2, stick='w')
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=4, column=1, columnspan=5, sticky='W')
+chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=4, column=3, ipady=3, ipadx=10, padx=2, stick='w')
 
 Tk.Label(registrationFrame, text='Iterations:').grid(row=4, sticky='e')
 calibrationIterations = Tk.IntVar()
-calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=4, column=1, columnspan=2, sticky='W')
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=4, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=5, column=1, columnspan=2, sticky='W')
+sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=3, columnspan=2, ipady=3, ipadx=10, padx=2, sticky='w')
 calibrationIterations.set(C.CalibrationIter)
 
 # CONFIG TAB

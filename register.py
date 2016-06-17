@@ -14,4 +14,17 @@ if __name__ == '__main__':
 	if not args['regfile']:
 		pickRegFile(args['inputFile'],config.regFileDir,filestring=None)
 
-	matlabReg(args['inputFile'].name,args['regfile'],args['refchannel'],args['domax'])
+	registeredFile, maxProj = matlabReg(args['inputFile'].name,args['regfile'],args['refchannel'],args['domax'])
+
+	# THIS IS NOT JUST FOR READOUT
+	# these lines  trigger the gui.py program to download the files
+	# that are printed... 
+	# the "updateStatusBar" in the "sendRemoteCommand" function looks for the 
+	# 'Files Ready:' string in the response.
+	print ""
+	print "Files Ready:"
+	if registeredFile: print "Registered: %s" % registeredFile
+	if maxProj: print "maxProj: %s" % maxProj
+
+	# this is important for the updateStatusBar function in gui.py
+	print "Done"
