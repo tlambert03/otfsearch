@@ -1,19 +1,19 @@
+#!/usr/bin/env python2.7
 """Tkinter-based GUI for OTF-searching workflow."""
 
 import Tkinter as Tk
 import tkFileDialog
 import tkMessageBox
+from ScrolledText import ScrolledText
+from ttk import Notebook, Style
 import sys
 import config as C
 import os
 from __init__ import isRawSIMfile
-from ScrolledText import ScrolledText
-from ttk import Notebook, Style
 import threading
 from functools import partial
 from ast import literal_eval
 import socket
-import time
 
 try:
 	import paramiko
@@ -35,6 +35,11 @@ Server = {
 	'progress' : (0,0),
 	'status' : None, # transferring, putDone, getDone, processing, canceled
 }
+
+
+#############################
+###        FUNCTIONS      ###
+#############################
 
 
 def make_connection(host=None, user=None):
@@ -411,7 +416,6 @@ def entriesValid(silent=False, mode=None):
 	if not cropsize.get().isdigit() or not int(cropsize.get()) in C.valid['cropsize']:
 		errors.append(["Optimized Reconstruction Input Error","Cropsize must be a power of 2 <= 512"])
 	if doReg.get() or mode=='register':
-		print 'doreg or modereg'
 		waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 		if not int(RefChannel.get()) in waves:
 			errors.append(["Registration Settings Error","Reference channel not in input file.  Must be one of the following:" + " ".join([str(w) for w in waves])])
@@ -424,8 +428,8 @@ def entriesValid(silent=False, mode=None):
 			# import scipy.io
 			# mat = scipy.io.loadmat(RegFile.get())
 			# regwaves = mat.get('R')[0][0][6][0][0][0][0]
-			if not RefChannel.get() in regwaves:
-				errors.append(["Registration File Error","The selected reference channel does not exist in the registration file. Please either change the registration file or the reference channel"])
+			if not int(RefChannel.get()) in regwaves:
+				errors.append(["Registration File Error","The selected reference channel (%s) does not exist in the registration file (%s). Please either change the registration file or the reference channel" % (RefChannel.get(),", ".join(regwaves))])
 		except:
 			errors.append(["Registration File Error","Cannot parse registration file name... for now, the filename must include 'waves_'... etc"])
 
@@ -535,27 +539,34 @@ def processFile(mode):
 		textArea.insert(Tk.END, "\n")
 		return 0
 
-
 def get_git_revision_short_hash():
 	import subprocess
 	os.chdir(os.path.dirname(os.path.realpath(__file__)))
 	return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
 
+
+#######################################################################################
+################################ START PROCEDURAL CODE ################################
+#######################################################################################
+
+### SETUP MAIN WINDOW ###
+
 root = Tk.Tk()
 root.title('CBMF SIM Reconstruction Tool v.%s' % get_git_revision_short_hash())
-
-top_frame = Tk.Frame(root)
-
-Nb = Notebook(root)
 Style().theme_use('clam')
 
+top_frame = Tk.Frame(root) # input file frame
+Nb = Notebook(root) # Tabs container
+textAreaFrame = Tk.Frame(root, bg='gray', bd=2) # Text Area (output) Frame
+statusFrame = Tk.Frame(root) # Statusbar Frame
+
+# add individual tab frames
 otfsearchFrame = Tk.Frame(Nb)
 singleReconFrame = Tk.Frame(Nb)
 serverFrame = Tk.Frame(Nb)
 batchFrame = Tk.Frame(Nb)
 registrationFrame = Tk.Frame(Nb)
 helpFrame = Tk.Frame(Nb)
-
 Nb.add(otfsearchFrame, text='Optimized Reconstruction')
 Nb.add(singleReconFrame, text='Specify OTFs')
 Nb.add(registrationFrame, text='Channel Registration')
@@ -563,20 +574,25 @@ Nb.add(batchFrame, text='Batch')
 Nb.add(serverFrame, text='Server')
 Nb.add(helpFrame, text='Help')
 
-textAreaFrame = Tk.Frame(root, bg='gray', bd=2)
-statusFrame = Tk.Frame(root)
+# pack the main frames into the top window
+top_frame.pack(side="top", fill="both", padx=15, pady=5)
+Nb.pack(side="top", fill="both",  padx=15, pady=5)
+textAreaFrame.pack(side="top", fill="both", padx=15, pady=5)
+statusFrame.pack(side="top", fill="both")
 
 
-top_frame.grid(row=0, pady=10)
-Nb.grid(row=1, padx=15, pady=5)
-textAreaFrame.grid(row=2, sticky="nsew", padx=15, pady=10)
-statusFrame.grid(row=3, sticky="ew")
+##### TOP AREA FOR INPUT FILE ####
 
-
-# Top Area widgets
+rawFilePath = Tk.StringVar()
+RefChannel = Tk.IntVar()
+RefChannel.set(C.refChannel)
+channelSelectVars={}
+doReg = Tk.IntVar()
+doReg.set(C.doReg)
+doMax = Tk.IntVar()
+doMax.set(C.doMax)
 
 Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
-rawFilePath = Tk.StringVar()
 rawFileEntry = Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
 chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile, width=9).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
@@ -584,7 +600,6 @@ Tk.Label(top_frame, text='Use Channels:').grid(row=1, sticky='e')
 
 allwaves=C.valid['waves']
 channelSelectBoxes={}
-channelSelectVars={}
 for i in range(len(allwaves)):
 	channelSelectVars[allwaves[i]]=Tk.IntVar()
 	channelSelectVars[allwaves[i]].set(0)
@@ -599,29 +614,25 @@ def naccheck(entry, var):
 		entry.configure(state='normal')
 
 Tk.Label(top_frame, text='Ref Channel:').grid(row=2, sticky='e')
-RefChannel = Tk.IntVar()
-RefChannel.set(C.refChannel)
 RefChannelEntry = Tk.OptionMenu(top_frame, RefChannel, *allwaves)
 if not C.doReg: RefChannelEntry.config(state='disabled')
 RefChannelEntry.grid(row=2, column=1, columnspan=1, sticky='W')
 
-doReg = Tk.IntVar()
-doReg.set(C.doReg)
+
 doRegButton = Tk.Checkbutton(top_frame, variable=doReg,
 	text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v))
 doRegButton.grid(row=2, column=2, columnspan=2, sticky='W')
 
-doMax = Tk.IntVar()
-doMax.set(C.doMax)
+
 doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection')
 doMaxButton.grid(row=2, column=4, columnspan=2, sticky='W')
 
 
 quitButton = Tk.Button(top_frame, text="Quit", command=quit, width=9)
-quitButton.grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
+quitButton.grid(row=1, column=7, ipady=3, ipadx=10)
 
 quitButton = Tk.Button(top_frame, text="Cancel", command=cancel, width=9)
-quitButton.grid(row=2, column=7, ipady=3, ipadx=10, padx=2)
+quitButton.grid(row=2, column=7, ipady=3, ipadx=10)
 
 
 # OTF search tab widgets

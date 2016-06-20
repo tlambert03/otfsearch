@@ -49,12 +49,12 @@ def batchmakeotf(directory):
 				if "_visit_" in F:
 					
 					# oh god the terrible horror of this code...
+					# the goal is simply to rename the file
 					s = F.split('_')
 					i = s.index('visit')
 					s.pop(i)
 					num = s.pop(i)
 					e = s.pop(-1).split(".")
-					ext = e.pop(-1)
 					e.append(str(num).zfill(3))
 					s.extend(e)
 					outfile = "_".join(s) + ".otf"
@@ -70,29 +70,65 @@ def batchmakeotf(directory):
 				#makeotf(F)
 
 
-def makeotf(infile, outfile=None):
+def makeotf(infile, outfile=None, nimm=1.515, na=1.42, beaddiam=0.11, angle=None, fixorigin=(3,20), background=None, leavekz='auto'):
 	if outfile is None:
 		outfile=os.path.splitext(infile)[0]+'.otf'
 	header = Mrc.open(infile).hdr
 	wave = header.wave[0]
 
-	fileangle = int(infile.split('_a')[1][0])
-	fileoil = infile.split('_')[2]
+	if not angle:
+		angle = int(infile.split('_a')[1][0])
+	
+	try:
+		fileoil = infile.split('_')[2]
+	except:
+		pass
 
 	#pull out stuff like oil from otf name here
 	spacings = config.spacings
 	angles = config.angles
 
-	leaveKZs = {
-		435 : [7, 10, 3],
-		528 : [7, 10, 3],
-		608 : [7, 10, 3],
-		683 : [8, 11, 2]
-	}
+	if leavekz == 'auto':
+		leaveKZs = {
+			435 : [7, 10, 3],
+			528 : [7, 10, 3],
+			608 : [7, 10, 3],
+			683 : [8, 11, 2]
+		}
+		leavekz = leaveKZs[wave]
+
 
 	callPriism()
 
-	com = [config.makeOTFapp, infile, outfile, '-angle', str(angles[wave][fileangle-1]), '-ls', str(spacings[wave])]
-	com.extend(['-na', '1.42', '-nimm', '1.515', '-beaddiam', '0.11', '-fixorigin', '3', '20', '-leavekz'])
-	com.extend([str(n) for n in leaveKZs[wave]])
+	com = [config.makeOTFapp, infile, outfile, '-angle', str(angles[wave][angle-1]), '-ls', str(spacings[wave])]
+	com.extend(['-na', str(na), '-nimm', str(nimm), '-beaddiam', str(beaddiam)])
+	com.extend(['-fixorigin', str(fixorigin[0]), str(fixorigin[1])])
+	if leavekz:
+		com.append('-leavekz')
+		com.extend([str(n) for n in leavekz])
+	if background:
+		com.extend(['-background', str(background)])
+	print " ".join(com)
 	subprocess.call(com)
+
+	return outfile
+
+
+if __name__ == '__main__':
+	
+	import argparse
+
+	parser = argparse.ArgumentParser(description='Apply channel registration to multi-channel file', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument('inputFile', help='The file to process', type=file)
+	parser.add_argument('-o','--outputFile', help='Optional name of output file to process', default=None, metavar='FILE')
+	parser.add_argument('-a','--angle', help='Angle of illumination', default=None, type=int)
+	parser.add_argument('-i','--nimm', help='Refractive index of imersion oil', default=1.515, type=float)
+	parser.add_argument('-n','--na', help='Numerical Aperture', default=1.42, type=float)
+	parser.add_argument('-d','--beaddiam', help='Bead Diameter', type=float, default=0.11)
+	parser.add_argument('-b','--background', help='background to subtract', type=int, default=None)
+	parser.add_argument('-f','--fixorigin', help='the starting and end pixel for interpolation along kr axis (default is 2 and 9)', 
+					 nargs="*", type=int, metavar='')
+	args = vars(parser.parse_args())
+
+	makeotf(args['inputFile'].name, outfile=args['outputFile'], nimm=args['nimm'], na=args['na'], beaddiam=args['beaddiam'], angle=args['angle'], background=args['background'])
+
