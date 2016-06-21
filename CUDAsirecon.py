@@ -1,13 +1,10 @@
 import os
 import subprocess
 
-def cudaSIrecon(inputFile, otfFile, outputFile=None, app=None, **kwargs):
+def cudaSIrecon(inputFile, otfFile, outputFile=None, app='/usr/local/bin/sir', **kwargs):
 	'''
 	python interface for Lin's CUDAsirecon command line app
 	'''
-	if not app:
-		app='/usr/local/bin/sir'
-
 	if not outputFile:
 		namesplit = os.path.splitext(inputFile)
 		outputFile = namesplit[0]+"_PROC"+namesplit[1]

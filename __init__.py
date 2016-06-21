@@ -66,12 +66,18 @@ def callPriism(command=None):
 	# must figure out way to add this to path 
 	if not os.environ.has_key('IVE_BASE') and os.path.exists(config.priismpath):
 		P = os.environ['PATH'].split(":")
-		P.insert(0,os.path.join(config.priismpath,'Darwin64/BIN'))
+		P.insert(0,os.path.join(config.priismpath,'Darwin64','BIN'))
 		os.environ['PATH'] = ":".join(P)
-		os.environ['DYLD_FALLBACK_LIBRARY_PATH'] = ":".join(config.libpath)
+		dyld_fallback = [ os.path.join(config.priismpath,'Darwin64','LIB'),
+			os.path.join(config.priismpath,'Darwin','LIB'),
+			os.path.join(os.path.expanduser('~'),'lib'),
+			'/usr/local/lib',
+			'/lib',
+			'/usr/lib']
+		os.environ['DYLD_FALLBACK_LIBRARY_PATH'] = ":".join(dyld_fallback)
 		os.environ['IVE_WORKING_SET']='24000'
 		os.environ['IVE_BASE']=config.priismpath
-		os.environ['LIBQUICKTIME_PLUGIN_DIR']=os.path.join(config.priismpath,os.path.sep.join(['libquicktime','Darwin','lib','libquicktime']))
+		os.environ['LIBQUICKTIME_PLUGIN_DIR']=os.path.join(config.priismpath,'libquicktime','Darwin','lib','libquicktime')
 		os.environ['IVE_PGTHRESH']='1024'
 		os.environ['IVE_SIZE']='27000'
 		os.environ['IVE_WORKING_UNIT']='128'
@@ -86,7 +92,7 @@ def callPriism(command=None):
 			msg += "Source the priism installation and try again"
 			raise EOFError(msg)
 
-def splitChannels(fname, waves=None):
+def splitchannels(fname, waves=None):
 	reader = Mrc.open(fname) 
 	imWaves = [i for i in reader.hdr.wave if i != 0]
 	if waves is None: waves = imWaves
@@ -123,7 +129,7 @@ def maxprj(fname, outFile=None):
 	return outFile
 
 
-def cropTime(fileIn, fileOut=None, start=1, end=1, step=1):
+def croptime(fileIn, fileOut=None, start=1, end=1, step=1):
 	if fileOut is None:
 		namesplit = os.path.splitext(fileIn)
 		fileOut=namesplit[0]+"_T"+str(end)+namesplit[1]
@@ -229,7 +235,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 
 	# split multi-channel files into component parts
 	if numWaves > 1:
-		splitfiles = splitChannels(inFile, reconWaves)
+		splitfiles = splitchannels(inFile, reconWaves)
 	else:
 		splitfiles = [inFile]
 
@@ -469,12 +475,11 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 	waves = [i for i in header.wave if i != 0]
 	numTimes = header.NumTimes
 	imSize = header.Num
-	numPlanes = imSize[2]/(numTimes*numWaves) # does this work?
 
 	# cut timelapse to the first timepoint
 	if numTimes>1:
 		print("Timelapse detected, clipping to the first timepoint")
-		fname=cropTime(fname)
+		fname=croptime(fname)
 
 	# crop to a central region to speed things up
 	if imSize[0]>cropsize or imSize[1]>cropsize:
@@ -500,7 +505,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 
 	# split multi-channel files into component parts
 	if numWaves > 1:
-		splitfiles = splitChannels(fname, reconWaves)
+		splitfiles = splitchannels(fname, reconWaves)
 	else:
 		splitfiles = [fname]
 
@@ -520,6 +525,13 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		indat=Mrc.bindFile(file)
 		im=np.asarray(indat)
 		TIV,channelDecay,angleDiffs = CIP(im)
+
+		if verbose and channelDecay > 0.3:
+			print "Bleaching is high: %d%" % (channelDecay*100)
+		if verbose and angleDiffs > 0.2:
+			print "Difference between angles is high: %d%" % (angleDiffs*100)
+		if verbose and TIV > 0.4:
+			print "Total intensity variation is high: %d%" % (TIV*100)
 
 		fileDict={  "input" : inputFile,
 					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
@@ -678,8 +690,6 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
 		scoreDF.to_csv(scoreFile)
 
-
-	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
 
 

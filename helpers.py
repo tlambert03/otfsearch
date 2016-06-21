@@ -244,7 +244,18 @@ def calcartifact(file, spacing=0.414635, angle=-0.80385, cropsize = 15):
 
 
 
+#MATLAB CODE
+def frc(in1,in2):
+	# take fft
+	ft1 = ft(in1);
+	ft2 = ft(in2);
 
-
+	# Compute fourier ring correlation curve
+	frc_num = real(radialsum(in1.*conj(in2)));              # Numerator
+	in1 = abs(in1).^2;
+	in2 = abs(in2).^2;
+	frc_denom = sqrt(abs(radialsum(in1).*radialsum(in2)));  # Denominator
+	frc_out = double(frc_num)./double(frc_denom);           # FRC
+	frc_out(isnan(frc_out)) = 0;                            # Remove NaNs
 
 

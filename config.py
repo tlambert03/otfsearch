@@ -8,12 +8,6 @@ server = 'cb-cbmf-latwork.med.harvard.edu'
 username = 'user'
 
 priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
-libpath = [ os.path.join(priismpath,'Darwin64/LIB'),
-			os.path.join(priismpath,'Darwin/LIB'),
-			os.path.join(os.path.expanduser('~'),'lib'),
-			'/usr/local/lib',
-			'/lib',
-			'/usr/lib']
 
 # DIRECTORIES ON THE RECONSTRUCTION SERVER
 # temp folder where files will get uploaded to

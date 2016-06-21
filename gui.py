@@ -27,15 +27,6 @@ except ImportError as e:
 	print 'This program requires the Mrc.py class file for reading .dv files'
 	sys.exit()
 
-sftp = ''
-Server = {
-	'busy' : False,
-	'connected' : False,
-	'currentFile' : None,
-	'progress' : (0,0),
-	'status' : None, # transferring, putDone, getDone, processing, canceled
-}
-
 
 #############################
 ###        FUNCTIONS      ###
@@ -80,12 +71,14 @@ def make_connection(host=None, user=None):
 		return 0
 	return ssh
 
+
 def reset_server():
 	#if ssh: ssh.close()
 	#Server['connected'] = False
 	Server['busy'] = False
 	Server['currentFile'] = None
 	Server['status'] = None
+
 
 def test_connect():
 	"""Test connection to ssh server and provide feedback."""
@@ -145,6 +138,7 @@ def sftp_progress(transferred, outof):
 	"""Update global sentinel variable with sftp progress."""
 	global Server
 	Server['progress'] = (transferred, outof)
+
 
 def download(filelist):
 	"""Start a thread for sftp.get."""
@@ -209,7 +203,6 @@ def upload_watcher(tup):
 
 	else:
 		pass
-
 
 
 def download_watcher(tup):
@@ -370,7 +363,6 @@ def send_command(remotefile, mode):
 	root.after(300, receive_command_response, ssh)
 
 
-
 def activateWaves(waves):
 	for w in waves:
 		channelSelectBoxes[w].config(state='normal')
@@ -415,6 +407,9 @@ def entriesValid(silent=False, mode=None):
 		errors.append(["Optimized Reconstruction Input Error","Oil max must be an integer between 1510 and 1530"])
 	if not cropsize.get().isdigit() or not int(cropsize.get()) in C.valid['cropsize']:
 		errors.append(["Optimized Reconstruction Input Error","Cropsize must be a power of 2 <= 512"])
+	if wiener.get().strip():
+		if float(wiener.get())>0.2 or float(wiener.get()) < 0:
+			errors.append(["Wiener Constant Error","Wiener constant must be between 0-0.2"])
 	if doReg.get() or mode=='register':
 		waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 		if not int(RefChannel.get()) in waves:
@@ -428,7 +423,7 @@ def entriesValid(silent=False, mode=None):
 			# import scipy.io
 			# mat = scipy.io.loadmat(RegFile.get())
 			# regwaves = mat.get('R')[0][0][6][0][0][0][0]
-			if not int(RefChannel.get()) in regwaves:
+			if not str(RefChannel.get()) in regwaves:
 				errors.append(["Registration File Error","The selected reference channel (%s) does not exist in the registration file (%s). Please either change the registration file or the reference channel" % (RefChannel.get(),", ".join(regwaves))])
 		except:
 			errors.append(["Registration File Error","Cannot parse registration file name... for now, the filename must include 'waves_'... etc"])
@@ -654,8 +649,11 @@ def dobatch(mode):
 					setRawFile(item)
 					V = entriesValid(silent=True)
 					if V[0]:
+						if onlyoptimizefirst.get() and Server['batchround']>1:
+							mode='single'
 						print("Current File: %s" % item)
 						processFile(mode)
+						Server['batchround']+=1
 					else:
 						print("Invalid settings on file: %s" % item)
 						textArea.insert(Tk.END, "Batch job skipping file: %s\n" % item)
@@ -668,6 +666,7 @@ def dobatch(mode):
 
 	if len(batchlist):
 		print("Starting batch on: %s" % directory)
+		Server['batchround']=1
 		callback(mode)
 	else:
 		statusTxt.set('No raw SIM files in directory!')
@@ -692,6 +691,14 @@ def get_git_revision_short_hash():
 #######################################################################################
 ################################ START PROCEDURAL CODE ################################
 #######################################################################################
+
+Server = {
+	'busy' : False,
+	'connected' : False,
+	'currentFile' : None,
+	'progress' : (0,0),
+	'status' : None, # transferring, putDone, getDone, processing, canceled
+}
 
 ### SETUP MAIN WINDOW ###
 
@@ -906,7 +913,7 @@ username = Tk.StringVar()
 username.set(C.username)
 
 Tk.Label(serverFrame, text='OTF Directory:').grid(row=0, sticky='e')
-k.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+Tk.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
 
 Tk.Label(serverFrame, text='SIR config Dir:').grid(row=1, sticky='e')
 Tk.Entry(serverFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
@@ -924,6 +931,8 @@ Tk.Button(serverFrame, text="Test Connection", command=test_connect,
 # BATCH TAB
 
 batchDir = Tk.StringVar()
+onlyoptimizefirst = Tk.IntVar()
+onlyoptimizefirst.set(0)
 
 Tk.Label(batchFrame, text='Batch apply optimized or single reconstruction to a directory of files.', 
 	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
@@ -938,8 +947,13 @@ Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dob
 	width=25).grid(row=2, column=1, ipady=6, sticky='ew')
 Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'), 
 	width=25).grid(row=2, column=2, ipady=6, sticky='ew')
+
+Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimized reconstruction on first file (then use OTFs)').grid(
+	row=4, column=1, columnspan=3, sticky='W')
+
+
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(
-	row=4, column=1, columnspan=3, pady=8, sticky='w')
+	row=5, column=1, columnspan=3, pady=8, sticky='w')
 
 # HELP TAB
 
