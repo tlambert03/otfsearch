@@ -532,12 +532,10 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 			print "Bleaching rate: %.2f%%" % channelDecay
 			print "Angle Illumination variance: %.2f%%" % angleDiffs
 			print "Total intensity variation: %.2f%%" % TIV
-			print "WARNING: Image: %s, Channel: %s, Bleaching: %.2f%%" % (os.path.basename(file),imChannel,channelDecay)
 			if channelDecay > 30:
 				print "WARNING: Image: %s, Channel: %s, Bleaching: %.2f%%" % (os.path.basename(file),imChannel,channelDecay)
 			if angleDiffs > 20:
-				print "ILLUMINATION INTENISTY IS >20%% ACROSS CHANNELS!"
-			print
+				print "WARNING: Image: %s, Channel: %s, AngleDiff: %.2f%%" % (os.path.basename(file),imChannel,angleDiffs)
 
 		fileDict={  "input" : inputFile,
 					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
