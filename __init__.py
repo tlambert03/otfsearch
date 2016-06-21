@@ -519,19 +519,24 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		
 		imChannel = Mrc.open(file).hdr.wave[0]
 		
-		if verbose: print "%s - Channel: %s" % (os.path.basename(file), imChannel)
+		if verbose:
+			print "%s - Channel: %s" % (os.path.basename(file), imChannel)
 
 		# raw data/bleaching test
 		indat=Mrc.bindFile(file)
 		im=np.asarray(indat)
 		TIV,channelDecay,angleDiffs = CIP(im)
 
-		if verbose and channelDecay > 0.3:
-			print "Bleaching is high: %.2f%%" % channelDecay
-		if verbose and angleDiffs > 0.2:
-			print "Difference between angles is high: %.2f%%" % angleDiffs
-		if verbose and TIV > 0.4:
-			print "Total intensity variation is high: %.2f%%" % TIV
+		if verbose:
+			print
+			print "Bleaching rate: %.2f%%" % channelDecay
+			print "Angle Illumination variance: %.2f%%" % angleDiffs
+			print "Total intensity variation: %.2f%%" % TIV
+			if channelDecay > 30:
+				print "CHECK RAW DATA FOR BLEACHING IN CHANNEL %s" % imChannel
+			if angleDiffs > 20:
+				print "ILLUMINATION INTENISTY IS >20%% ACROSS CHANNELS!"
+			print
 
 		fileDict={  "input" : inputFile,
 					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
