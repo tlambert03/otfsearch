@@ -532,8 +532,9 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 			print "Bleaching rate: %.2f%%" % channelDecay
 			print "Angle Illumination variance: %.2f%%" % angleDiffs
 			print "Total intensity variation: %.2f%%" % TIV
+			print "WARNING: Image: %s, Channel: %s, Bleaching: %.2f%%" % (os.basename(file),imChannel,channelDecay)
 			if channelDecay > 30:
-				print "CHECK RAW DATA FOR BLEACHING IN CHANNEL %s" % imChannel
+				print "WARNING: Image: %s, Channel: %s, Bleaching: %.2f%%" % (os.basename(file),imChannel,channelDecay)
 			if angleDiffs > 20:
 				print "ILLUMINATION INTENISTY IS >20%% ACROSS CHANNELS!"
 			print
