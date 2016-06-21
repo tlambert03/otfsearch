@@ -527,11 +527,11 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		TIV,channelDecay,angleDiffs = CIP(im)
 
 		if verbose and channelDecay > 0.3:
-			print "Bleaching is high: %d%" % (channelDecay*100)
+			print "Bleaching is high: %f%" % channelDecay
 		if verbose and angleDiffs > 0.2:
-			print "Difference between angles is high: %d%" % (angleDiffs*100)
+			print "Difference between angles is high: %f%" % angleDiffs
 		if verbose and TIV > 0.4:
-			print "Total intensity variation is high: %d%" % (TIV*100)
+			print "Total intensity variation is high: %f%" % TIV
 
 		fileDict={  "input" : inputFile,
 					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
