@@ -462,6 +462,12 @@ def getbatchDir():
 		batchDir.set(filename)
 
 
+def getregCalImage():
+	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
+	if filename:
+		regCalImage.set(filename )
+
+
 def getRegFile():
 	ssh = make_connection()
 	sftp = ssh.open_sftp()
@@ -504,208 +510,6 @@ def getRegFile():
 	top.geometry("%dx%d+%d+%d" % (size + (x, y)))
 	top.resizable(0, 0)
 
-
-def quit():
-	"""Quit the program."""
-	root.destroy()
-
-def cancel():
-	"""Cancel the current activity."""
-	print("Cancel button pressed.")
-	global Server
-	if Server['status'] and Server['status'] != 'canceled':
-		statusTxt.set("Process canceled!")
-		textArea.insert(Tk.END, "Process canceled...\n\n")
-	Server['status'] = 'canceled'
-	Server['busy'] = False
-	# could be more agressiver here and close ssh
-
-def processFile(mode):
-	""" where mode = 'optimal', 'single', 'register', or 'registerCal' """
-	inputfile = rawFilePath.get()
-	if not os.path.exists(inputfile):
-		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
-		return 0
-	if not mode=='register' and not isRawSIMfile(inputfile):
-		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
-		if response == "no":
-			return 0
-	V = entriesValid(mode)
-	if V[0]:
-		upload(inputfile, C.remotepath, mode)
-	else:
-		textArea.insert(Tk.END, "Invalid settings!\n")
-		[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
-		textArea.insert(Tk.END, "\n")
-		return 0
-
-def get_git_revision_short_hash():
-	import subprocess
-	os.chdir(os.path.dirname(os.path.realpath(__file__)))
-	return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
-
-
-#######################################################################################
-################################ START PROCEDURAL CODE ################################
-#######################################################################################
-
-### SETUP MAIN WINDOW ###
-
-root = Tk.Tk()
-root.title('CBMF SIM Reconstruction Tool v.%s' % get_git_revision_short_hash())
-Style().theme_use('clam')
-
-top_frame = Tk.Frame(root) # input file frame
-Nb = Notebook(root) # Tabs container
-textAreaFrame = Tk.Frame(root, bg='gray', bd=2) # Text Area (output) Frame
-statusFrame = Tk.Frame(root) # Statusbar Frame
-
-# add individual tab frames
-otfsearchFrame = Tk.Frame(Nb)
-singleReconFrame = Tk.Frame(Nb)
-serverFrame = Tk.Frame(Nb)
-batchFrame = Tk.Frame(Nb)
-registrationFrame = Tk.Frame(Nb)
-helpFrame = Tk.Frame(Nb)
-Nb.add(otfsearchFrame, text='Optimized Reconstruction')
-Nb.add(singleReconFrame, text='Specify OTFs')
-Nb.add(registrationFrame, text='Channel Registration')
-Nb.add(batchFrame, text='Batch')
-Nb.add(serverFrame, text='Server')
-Nb.add(helpFrame, text='Help')
-
-# pack the main frames into the top window
-top_frame.pack(side="top", fill="both", padx=15, pady=5)
-Nb.pack(side="top", fill="both",  padx=15, pady=5)
-textAreaFrame.pack(side="top", fill="both", padx=15, pady=5)
-statusFrame.pack(side="top", fill="both")
-
-
-##### TOP AREA FOR INPUT FILE ####
-
-rawFilePath = Tk.StringVar()
-RefChannel = Tk.IntVar()
-RefChannel.set(C.refChannel)
-channelSelectVars={}
-doReg = Tk.IntVar()
-doReg.set(C.doReg)
-doMax = Tk.IntVar()
-doMax.set(C.doMax)
-
-Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
-rawFileEntry = Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, columnspan=6, column=1, sticky='W')
-chooseFileButton = Tk.Button(top_frame, text ="Choose File", command = getRawFile, width=9).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
-
-Tk.Label(top_frame, text='Use Channels:').grid(row=1, sticky='e')
-
-allwaves=C.valid['waves']
-channelSelectBoxes={}
-for i in range(len(allwaves)):
-	channelSelectVars[allwaves[i]]=Tk.IntVar()
-	channelSelectVars[allwaves[i]].set(0)
-	channelSelectBoxes[allwaves[i]]=Tk.Checkbutton(top_frame)
-	channelSelectBoxes[allwaves[i]].config(variable=channelSelectVars[allwaves[i]], text=str(allwaves[i]), state='disabled')
-	channelSelectBoxes[allwaves[i]].grid(row=1, column=i+1, sticky='W')
-
-def naccheck(entry, var):
-	if var.get() == 0:
-		entry.configure(state='disabled')
-	else:
-		entry.configure(state='normal')
-
-Tk.Label(top_frame, text='Ref Channel:').grid(row=2, sticky='e')
-RefChannelEntry = Tk.OptionMenu(top_frame, RefChannel, *allwaves)
-if not C.doReg: RefChannelEntry.config(state='disabled')
-RefChannelEntry.grid(row=2, column=1, columnspan=1, sticky='W')
-
-
-doRegButton = Tk.Checkbutton(top_frame, variable=doReg,
-	text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v))
-doRegButton.grid(row=2, column=2, columnspan=2, sticky='W')
-
-
-doMaxButton = Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection')
-doMaxButton.grid(row=2, column=4, columnspan=2, sticky='W')
-
-
-quitButton = Tk.Button(top_frame, text="Quit", command=quit, width=9)
-quitButton.grid(row=1, column=7, ipady=3, ipadx=10)
-
-quitButton = Tk.Button(top_frame, text="Cancel", command=cancel, width=9)
-quitButton.grid(row=2, column=7, ipady=3, ipadx=10)
-
-
-# OTF search tab widgets
-
-leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):',
-	'Min Oil RI:', 'Max Oil RI:']
-for i in range(len(leftLabels)):
-	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i, sticky='E')
-
-maxOTFage = Tk.StringVar()
-maxOTFage.set(C.maxAge if C.maxAge is not None else '')
-maxOTFageEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFage)
-maxOTFageEntry.grid(row=0, column=1, columnspan=3, sticky='W')
-
-maxOTFnum = Tk.StringVar()
-maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
-maxOTFnumEntry = Tk.Entry(otfsearchFrame, textvariable=maxOTFnum)
-maxOTFnumEntry.grid(row=1, column=1, columnspan=3, sticky='W')
-
-cropsize = Tk.StringVar()
-cropsize.set(C.cropsize)
-cropsizeEntry = Tk.Entry(otfsearchFrame, textvariable=cropsize)
-cropsizeEntry.grid(row=2, column=1, columnspan=3, sticky='W')
-
-OilMin = Tk.StringVar()
-OilMin.set(C.oilMin)
-OilMinEntry = Tk.Entry(otfsearchFrame, textvariable=OilMin)
-OilMinEntry.grid(row=3, column=1, columnspan=3, sticky='W')
-
-OilMax = Tk.StringVar()
-OilMax.set(C.oilMax)
-OilMaxEntry = Tk.Entry(otfsearchFrame, textvariable=OilMax)
-OilMaxEntry.grid(row=4, column=1, columnspan=3, sticky='W')
-
-
-Tk.Button(otfsearchFrame, text="Run OTF Search",
-	command=partial(processFile, 'optimal'), width=12).grid(row=8,
-	column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
-
-forceChannels = {}
-forceChannelsMenus = {}
-Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings",
-	font=('Arial', 12, 'bold')).grid(row=0, column=5, columnspan=3,
-	sticky='w', padx=(20, 0))
-
-for i in range(len(allwaves)):
-	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i + 1,
-		column=5, sticky='E', padx=(40, 0))
-	forceChannels[allwaves[i]] = Tk.IntVar()
-	forceChannels[allwaves[i]].set(allwaves[i])
-	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame,
-		forceChannels[allwaves[i]], *allwaves)
-	forceChannelsMenus[allwaves[i]].grid(row=i + 1, column=6, sticky='w')
-
-
-# SINGLE RECON TAB
-
-
-Tk.Label(singleReconFrame, text='Wiener constant:').grid(row=0, sticky='e')
-wiener = Tk.StringVar()
-wiener.set(C.wiener)
-wienerEntry = Tk.Entry(singleReconFrame, textvariable=wiener, width=15)
-wienerEntry.grid(row=0, column=1, sticky='W')
-
-Tk.Label(singleReconFrame, text='Timepoints:').grid(row=0, column=2, sticky='e')
-timepoints = Tk.StringVar()
-timepoints.set('')
-timepointsEntry = Tk.Entry(singleReconFrame, textvariable=timepoints, width=15)
-timepointsEntry.grid(row=0, column=3, sticky='W')
-
-
-for i in range(len(allwaves)):
-	Tk.Label(singleReconFrame, text=str(allwaves[i]) + "nm OTF: ").grid(row=i + 1, sticky='E')
 
 def getChannelOTF(var):
 
@@ -766,31 +570,39 @@ def getChannelOTF(var):
 	top.resizable(0,0)
 
 
+def quit():
+	"""Quit the program."""
+	root.destroy()
 
-allwaves=C.valid['waves']
-channelOTFPaths={}
-channelOTFEntries={}
-channelOTFButtons={}
+def cancel():
+	"""Cancel the current activity."""
+	print("Cancel button pressed.")
+	global Server
+	if Server['status'] and Server['status'] != 'canceled':
+		statusTxt.set("Process canceled!")
+		textArea.insert(Tk.END, "Process canceled...\n\n")
+	Server['status'] = 'canceled'
+	Server['busy'] = False
+	# could be more agressiver here and close ssh
 
-for i in range(len(allwaves)):
-	channelOTFPaths[allwaves[i]] = Tk.StringVar()
-	channelOTFPaths[allwaves[i]].set(os.path.join(C.defaultOTFdir,str(allwaves[i])+'.otf'))
-	channelOTFEntries[allwaves[i]] = Tk.Entry(singleReconFrame, textvariable=channelOTFPaths[allwaves[i]], width=48)
-	channelOTFEntries[allwaves[i]].grid(row=i+1, columnspan=6, column=1, sticky='W')
-	channelOTFButtons[allwaves[i]] = Tk.Button(singleReconFrame, text ="Select OTF", command=partial(getChannelOTF, allwaves[i]))
-	channelOTFButtons[allwaves[i]].grid(row=i+1, column=7, ipady=3, ipadx=10, padx=2)
-
-
-Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(processFile, 'single'), width=12).grid(row=8, column=1, columnspan=3, ipady=8, ipadx=8, pady=8, padx=8)
-
-
-# REGISTRATION TAB
-
-def getregCalImage():
-	filename = tkFileDialog.askopenfilename(filetypes=[('DV file', '.dv')])
-	if filename:
-		regCalImage.set(filename )
-
+def processFile(mode):
+	""" where mode = 'optimal', 'single', 'register', or 'registerCal' """
+	inputfile = rawFilePath.get()
+	if not os.path.exists(inputfile):
+		tkMessageBox.showinfo("Input file Error", "Input file does not exist")
+		return 0
+	if not mode=='register' and not isRawSIMfile(inputfile):
+		response = tkMessageBox.askquestion("Input file Error", "Input file doesn't appear to be a raw SIM file... Do it anyway?")
+		if response == "no":
+			return 0
+	V = entriesValid(mode)
+	if V[0]:
+		upload(inputfile, C.remotepath, mode)
+	else:
+		textArea.insert(Tk.END, "Invalid settings!\n")
+		[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
+		textArea.insert(Tk.END, "\n")
+		return 0
 
 def sendRegCal():
 	inputfile = regCalImage.get()
@@ -798,70 +610,6 @@ def sendRegCal():
 		tkMessageBox.showinfo("Input file Error", "Registration calibration image doesn't exist")
 		return 0
 	upload(inputfile, C.remotepath, 'registerCal')
-
-
-Tk.Label(registrationFrame, text='Apply registration to current image file', font=('Arial', 13, 'bold')).grid(row=0, columnspan=4, sticky='w')
-
-Tk.Label(registrationFrame, text='Registration File:').grid(row=1, sticky='e')
-RegFile = Tk.StringVar()
-RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile, width=43).grid(row=1, column=1, columnspan=3, sticky='W')
-chooseRegFileButton = Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=4, ipady=3, ipadx=10, padx=2, sticky='w')
-RegFile.set( C.regFile )
-
-singleRegButton = Tk.Button(registrationFrame, text ="Register Input File", command = partial(processFile, 'register')).grid(row=2, column=1,ipady=3, ipadx=10, padx=2, sticky='w')
-
-Tk.Label(registrationFrame, text='Ref Channel:').grid(row=2, column=2, sticky='e')
-RefChannelEntry = Tk.OptionMenu(registrationFrame, RefChannel, *allwaves)
-RefChannelEntry.grid(row=2, column=3, sticky='W')
-
-Tk.Label(registrationFrame, text='Calibrate registration', font=('Arial', 13, 'bold')).grid(row=3, columnspan=4, sticky='w',pady=(20,0))
-
-Tk.Label(registrationFrame, text='Calibration Image:').grid(row=4, sticky='e')
-regCalImage = Tk.StringVar()
-regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=4, column=1, columnspan=3, sticky='W')
-chooseregCalImageButton = Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=4, column=4, ipady=3, ipadx=10, padx=2, stick='w')
-
-Tk.Label(registrationFrame, text='Iterations:').grid(row=5, sticky='e')
-calibrationIterations = Tk.IntVar()
-calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=5, column=1, columnspan=3, sticky='W')
-sendregCalImageButton = Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=4, columnspan=3, ipady=3, ipadx=10, padx=2, sticky='w')
-calibrationIterations.set(C.CalibrationIter)
-
-# CONFIG TAB
-
-Tk.Label(serverFrame, text='OTF Directory:').grid(row=0, sticky='e')
-OTFdir = Tk.StringVar()
-OTFdirEntry = Tk.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
-#chooseOTFdirButton = Tk.Button(serverFrame, text ="Choose Dir", command = getOTFdir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
-OTFdir.set(C.OTFdir )
-
-Tk.Label(serverFrame, text='SIR config Dir:').grid(row=1, sticky='e')
-SIRconfigDir = Tk.StringVar()
-SIRconfigDirEntry = Tk.Entry(serverFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
-#chooseSIRconfigdirButton = Tk.Button(serverFrame, text ="Choose Dir", command = getSIRconfigDir).grid(row=1, column=7, ipady=3, ipadx=10, padx=2)
-SIRconfigDir.set( C.SIconfigDir )
-
-Tk.Label(serverFrame, text='Server Address:').grid(row=3, sticky='e')
-server = Tk.StringVar()
-serverEntry = Tk.Entry(serverFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
-server.set( C.server )
-
-Tk.Label(serverFrame, text='Username:').grid(row=4, sticky='e')
-username = Tk.StringVar()
-usernameEntry = Tk.Entry(serverFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
-username.set( C.username )
-
-
-Tk.Button(serverFrame, text="Test Connection", command=test_connect,
-	width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
-
-
-# BATCH TAB
-
-Tk.Label(batchFrame, text='Directory:').grid(row=0, sticky='e')
-batchDir = Tk.StringVar()
-batchDirEntry = Tk.Entry(batchFrame, textvariable=batchDir, width=50).grid(row=0, column=1, columnspan=6, sticky='W')
-batchDirButton = Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(row=0, column=7, ipady=3, ipadx=10, padx=2)
 
 
 def dobatch(mode):
@@ -925,14 +673,275 @@ def dobatch(mode):
 		statusTxt.set('No raw SIM files in directory!')
 
 
+def naccheck(entry, var):
+	# function for linking enabled state of entry 
+	# to a checkbox, for example
+	if var.get() == 0:
+		entry.configure(state='disabled')
+	else:
+		entry.configure(state='normal')
 
 
-Tk.Button(batchFrame, text="Batch Optimized Recon", command=partial(dobatch, 'optimal')).grid(row=1, column=1, columnspan=3, ipady=6, ipadx=6, sticky='w')
-Tk.Button(batchFrame, text="Batch Recon with Specified OTFs", command=partial(dobatch, 'single')).grid(row=1, column=4, columnspan=3, ipady=6, ipadx=6, sticky='e')
-Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(row=2, column=1, columnspan=6, sticky='e')
+def get_git_revision_short_hash():
+	import subprocess
+	os.chdir(os.path.dirname(os.path.realpath(__file__)))
+	return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
 
-# Help Frame
 
+
+#######################################################################################
+################################ START PROCEDURAL CODE ################################
+#######################################################################################
+
+### SETUP MAIN WINDOW ###
+
+root = Tk.Tk()
+root.title('CBMF SIM Reconstruction Tool v.%s' % get_git_revision_short_hash())
+Style().theme_use('clam')
+
+top_frame = Tk.Frame(root) # input file frame
+Nb = Notebook(root) # Tabs container
+textAreaFrame = Tk.Frame(root, bg='gray', bd=2) # Text Area (output) Frame
+statusFrame = Tk.Frame(root) # Statusbar Frame
+
+# add individual tab frames
+otfsearchFrame = Tk.Frame(Nb, padx=5, pady=8)
+singleReconFrame = Tk.Frame(Nb, padx=5, pady=8)
+serverFrame = Tk.Frame(Nb, padx=5, pady=8)
+batchFrame = Tk.Frame(Nb, padx=5, pady=8)
+registrationFrame = Tk.Frame(Nb, padx=5, pady=8)
+helpFrame = Tk.Frame(Nb, padx=5, pady=8)
+Nb.add(otfsearchFrame, text='Optimized Reconstruction')
+Nb.add(singleReconFrame, text='Specify OTFs')
+Nb.add(registrationFrame, text='Channel Registration')
+Nb.add(batchFrame, text='Batch')
+Nb.add(serverFrame, text='Server')
+Nb.add(helpFrame, text='Help')
+
+# pack the main frames into the top window
+top_frame.pack(side="top", fill="both", padx=15, pady=5)
+Nb.pack(side="top", fill="both",  padx=15, pady=5)
+textAreaFrame.pack(side="top", fill="both", padx=15, pady=5)
+statusFrame.pack(side="top", fill="both")
+
+
+##### TOP AREA FOR INPUT FILE ####
+
+# variables
+rawFilePath = Tk.StringVar()
+RefChannel = Tk.IntVar()
+RefChannel.set(C.refChannel)
+channelSelectVars={}
+doReg = Tk.IntVar()
+doReg.set(C.doReg)
+doMax = Tk.IntVar()
+doMax.set(C.doMax)
+
+Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
+Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+
+Tk.Label(top_frame, text='Use Channels:').grid(row=1, sticky='e')
+allwaves=C.valid['waves']
+channelSelectBoxes={}
+for i in range(len(allwaves)):
+	channelSelectVars[allwaves[i]]=Tk.IntVar()
+	channelSelectVars[allwaves[i]].set(0)
+	channelSelectBoxes[allwaves[i]]=Tk.Checkbutton(top_frame)
+	channelSelectBoxes[allwaves[i]].config(variable=channelSelectVars[allwaves[i]], text=str(allwaves[i]), state='disabled')
+	channelSelectBoxes[allwaves[i]].grid(row=1, column=i+1, sticky='W')
+
+Tk.Label(top_frame, text='Ref Channel:').grid(row=2, sticky='e')
+RefChannelEntry = Tk.OptionMenu(top_frame, RefChannel, *allwaves)
+if not C.doReg: RefChannelEntry.config(state='disabled')
+RefChannelEntry.grid(row=2, column=1, sticky='W')
+Tk.Checkbutton(top_frame, variable=doReg,
+	text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v)).grid(
+	row=2, column=2, columnspan=2, sticky='W')
+Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(
+	row=2, column=4, columnspan=2, sticky='W')
+
+Tk.Button(top_frame, text ="Choose File", command=getRawFile).grid(
+	row=0, column=7, ipady=3, ipadx=7, sticky='ew')
+Tk.Button(top_frame, text="Quit", command=quit).grid(
+	row=1, column=7, ipady=3, ipadx=7, sticky='ew')
+Tk.Button(top_frame, text="Cancel", command=cancel).grid(
+	row=2, column=7, ipady=3, ipadx=7, sticky='ew')
+
+
+# OPTIMIZED RECONSTRUCTION
+
+# variables
+maxOTFage = Tk.StringVar()
+maxOTFage.set(C.maxAge if C.maxAge is not None else '')
+maxOTFnum = Tk.StringVar()
+maxOTFnum.set(C.maxNum if C.maxNum is not None else '')
+cropsize = Tk.StringVar()
+cropsize.set(C.cropsize)
+OilMin = Tk.StringVar()
+OilMin.set(C.oilMin)
+OilMax = Tk.StringVar()
+OilMax.set(C.oilMax)
+forceChannels = {}
+forceChannelsMenus = {}
+
+#left side
+Tk.Label(otfsearchFrame, text="Limit OTFs used in search",
+	font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=2,
+	sticky='w')
+
+leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):',
+	'Min Oil RI:', 'Max Oil RI:']
+for i in range(len(leftLabels)):
+	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i+1, sticky='E')
+
+Tk.Entry(otfsearchFrame, textvariable=maxOTFage).grid(row=1, column=1)
+Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=2, column=1)
+Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=3, column=1)
+Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=4, column=1)
+Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=5, column=1)
+
+#right side
+Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings",
+	font=('Helvetica', 12, 'bold')).grid(row=0, column=2, columnspan=2,
+	sticky='w', padx=(20, 0))
+
+for i in range(len(allwaves)):
+	Tk.Label(otfsearchFrame, text="OTF to use for channel %s:" % allwaves[i]).grid(row=i + 1,
+		column=2, sticky='E', padx=(40, 0))
+	forceChannels[allwaves[i]] = Tk.IntVar()
+	forceChannels[allwaves[i]].set(allwaves[i])
+	forceChannelsMenus[allwaves[i]] = Tk.OptionMenu(otfsearchFrame,
+		forceChannels[allwaves[i]], *allwaves)
+	forceChannelsMenus[allwaves[i]].grid(row=i + 1, column=3, sticky='w')
+
+Tk.Button(otfsearchFrame, text="Run OTF Search",
+	command=partial(processFile, 'optimal')).grid(row=7,
+	column=0, columnspan=4, ipady=8, ipadx=8, pady=35)
+
+
+# SINGLE RECON TAB
+
+#variables
+wiener = Tk.StringVar()
+wiener.set(C.wiener)
+background = Tk.StringVar()
+background.set(C.background)
+timepoints = Tk.StringVar()
+timepoints.set('')
+allwaves=C.valid['waves']
+channelOTFPaths={}
+channelOTFEntries={}
+channelOTFButtons={}
+
+Tk.Label(singleReconFrame, 
+	text="Use this tab to quickly reconstruct the input file with the OTFs and settings specified in this tab",
+	font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=7,
+	sticky='w')
+
+Tk.Label(singleReconFrame, text='Wiener:').grid(row=1, column=0, sticky='E')
+Tk.Entry(singleReconFrame, textvariable=wiener, width=9).grid(row=1, column=1)
+
+Tk.Label(singleReconFrame, text='Background:').grid(row=1, column=2, sticky='e')
+Tk.Entry(singleReconFrame, textvariable=background, width=9).grid(row=1, column=3)
+
+Tk.Label(singleReconFrame, text='Timepoints:').grid(row=1, column=4, sticky='e')
+Tk.Entry(singleReconFrame, textvariable=timepoints, width=9).grid(row=1, column=5)
+
+for i in range(len(allwaves)):
+	Tk.Label(singleReconFrame, text=str(allwaves[i]) + "nm OTF: ").grid(row=i+2, column=0, sticky='E')
+
+for i in range(len(allwaves)):
+	channelOTFPaths[allwaves[i]] = Tk.StringVar()
+	channelOTFPaths[allwaves[i]].set(os.path.join(C.defaultOTFdir,str(allwaves[i])+'.otf'))
+	channelOTFEntries[allwaves[i]] = Tk.Entry(singleReconFrame, textvariable=channelOTFPaths[allwaves[i]])
+	channelOTFEntries[allwaves[i]].grid(row=i+2, column=1, columnspan=5, sticky='EW')
+	channelOTFButtons[allwaves[i]] = Tk.Button(singleReconFrame, text ="Select OTF", command=partial(getChannelOTF, allwaves[i]))
+	channelOTFButtons[allwaves[i]].grid(row=i+2, column=6, ipady=3, ipadx=10)
+
+
+Tk.Button(singleReconFrame, text ="Reconstruct", command = partial(processFile, 'single')).grid(row=8, column=0, columnspan=7, ipady=8, ipadx=8, pady=8)
+
+
+# REGISTRATION TAB
+
+# variables
+RegFile = Tk.StringVar()
+RegFile.set( C.regFile )
+regCalImage = Tk.StringVar()
+calibrationIterations = Tk.IntVar()
+calibrationIterations.set(C.CalibrationIter)
+
+Tk.Label(registrationFrame, text='Apply registration to current image file', font=('Helvetica', 13, 'bold')).grid(row=0, column=0, columnspan=5, sticky='w')
+
+Tk.Label(registrationFrame, text='Registration File:').grid(row=1, column=0, sticky='E')
+RegFileEntry = Tk.Entry(registrationFrame, textvariable=RegFile).grid(row=1, column=1, columnspan=3, sticky='EW')
+Tk.Button(registrationFrame, text ="Choose File", command = getRegFile).grid(row=1, column=4, ipady=3, ipadx=10, sticky='ew')
+
+singleRegButton = Tk.Button(registrationFrame, text ="Register Input File", command = partial(processFile, 'register')).grid(row=2, column=1,ipady=3, ipadx=10,sticky='w')
+Tk.Label(registrationFrame, text='Ref Channel:').grid(row=2, column=2, sticky='e')
+RefChannelEntry = Tk.OptionMenu(registrationFrame, RefChannel, *allwaves)
+RefChannelEntry.grid(row=2, column=3, sticky='W')
+
+Tk.Label(registrationFrame, text='Use calibration image (e.g. dot grid, or tetraspeck) to calculate registration matrices', font=('Helvetica', 13, 'bold')).grid(row=3, columnspan=5, sticky='w',pady=(20,0))
+
+Tk.Label(registrationFrame, text='Calibration Image:').grid(row=4, column=0, sticky='e')
+regCalImageEntry = Tk.Entry(registrationFrame, textvariable=regCalImage, width=43).grid(row=4, column=1, columnspan=3, sticky='W')
+Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).grid(row=4, column=4, ipady=3, ipadx=10, sticky='ew')
+
+Tk.Label(registrationFrame, text='Iterations:').grid(row=5, column=0, sticky='e')
+calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=43).grid(row=5, column=1, columnspan=3, sticky='W')
+Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=4, columnspan=3, ipady=3, ipadx=10, sticky='ew')
+
+
+# CONFIG TAB
+
+# variables
+OTFdir = Tk.StringVar()
+OTFdir.set(C.OTFdir )
+SIRconfigDir = Tk.StringVar()
+SIRconfigDir.set(C.SIconfigDir)
+server = Tk.StringVar()
+server.set(C.server)
+username = Tk.StringVar()
+username.set(C.username)
+
+Tk.Label(serverFrame, text='OTF Directory:').grid(row=0, sticky='e')
+k.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+
+Tk.Label(serverFrame, text='SIR config Dir:').grid(row=1, sticky='e')
+Tk.Entry(serverFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
+
+Tk.Label(serverFrame, text='Server Address:').grid(row=3, sticky='e')
+Tk.Entry(serverFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
+
+Tk.Label(serverFrame, text='Username:').grid(row=4, sticky='e')
+Tk.Entry(serverFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
+
+Tk.Button(serverFrame, text="Test Connection", command=test_connect,
+	width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
+
+
+# BATCH TAB
+
+batchDir = Tk.StringVar()
+
+Tk.Label(batchFrame, text='Batch apply optimized or single reconstruction to a directory of files.', 
+	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
+
+Tk.Label(batchFrame, text='Directory:').grid(row=1, sticky='e')
+Tk.Entry(batchFrame, textvariable=batchDir, width=50).grid(
+	row=1, column=1, columnspan=2, pady=8, sticky='W')
+Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(
+	row=1, column=3, ipady=3, ipadx=10, padx=2)
+
+Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dobatch, 'optimal'), 
+	width=25).grid(row=2, column=1, ipady=6, sticky='ew')
+Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'), 
+	width=25).grid(row=2, column=2, ipady=6, sticky='ew')
+Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(
+	row=4, column=1, columnspan=3, pady=8, sticky='w')
+
+# HELP TAB
 
 helpText = ScrolledText(helpFrame, wrap='word')
 helpText.pack(fill='both')
@@ -966,9 +975,11 @@ helpText.insert('insert', "Created by Talley Lambert, (c) 2016", 'paragraph')
 
 helpText.config(height=17, state='disabled')
 
+
 # TEXT AREA
+
 textArea = ScrolledText(textAreaFrame)
-textArea.config(height=10)
+textArea.config(height=14)
 textArea.pack(side='bottom', fill='both')
 
 Tk.Button(textAreaFrame, text="Clear", command=lambda: textArea.delete(1.0, 'end'), relief='flat', padx=7, pady=4).place(
@@ -979,7 +990,6 @@ Tk.Button(textAreaFrame, text="Clear", command=lambda: textArea.delete(1.0, 'end
 statusTxt = Tk.StringVar()
 statusBar = Tk.Label(statusFrame, textvariable=statusTxt, bd=1, relief='sunken', anchor='w', background='gray')
 statusBar.pack(side='bottom', fill='x')
-
 
 # UPDATE WINDOW GEOMETRY AND CENTER ON SCREEN
 root.update_idletasks()
