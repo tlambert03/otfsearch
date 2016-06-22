@@ -126,9 +126,21 @@ if __name__ == '__main__':
 	parser.add_argument('-n','--na', help='Numerical Aperture', default=1.42, type=float)
 	parser.add_argument('-d','--beaddiam', help='Bead Diameter', type=float, default=0.11)
 	parser.add_argument('-b','--background', help='background to subtract', type=int, default=None)
-	parser.add_argument('-f','--fixorigin', help='the starting and end pixel for interpolation along kr axis (default is 2 and 9)', 
-					 nargs="*", type=int, metavar='')
+	parser.add_argument('-f','--fixorigin', help='the starting and end pixel for interpolation along kr axis', 
+					 nargs="*", type=int, metavar='', default=None)
+	parser.add_argument('-l','--leavekz', help='the pixels to be retained on kz axis', 
+					 nargs=3, type=int, metavar=('kz1_1','kz1_2','kz2'), default=None)
 	args = vars(parser.parse_args())
 
-	makeotf(args['inputFile'].name, outfile=args['outputFile'], nimm=args['nimm'], na=args['na'], beaddiam=args['beaddiam'], angle=args['angle'], background=args['background'])
+	if args['leavekz']:
+		lkz=args['leavekz']
+	else:
+		lkz='auto'
+	if args['fixorigin']:
+		fo=args['fixorigin']
+	else:
+		fo=(3,20)
+
+	makeotf(args['inputFile'].name, outfile=args['outputFile'], nimm=args['nimm'], na=args['na'], beaddiam=args['beaddiam'], 
+		angle=args['angle'], background=args['background'], fixorigin=fo, leavekz=lkz)
 
