@@ -13,7 +13,7 @@ priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
 # temp folder where files will get uploaded to
 remotepath = '/mnt/data0/remote/'
 # script to trigger optimized reconstruction
-remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/__main__.py'
+remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/optimalRecon.py'
 # script to trigger single recon with specific OTFs
 remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
 # script to trigger single registration with specific OTFs

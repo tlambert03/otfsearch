@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import config
-from __init__ import reconstructMulti, goodChannel, cropCheck, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile
+from __init__ import reconstructMulti, goodChannel, cropCheck, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprjmm
 import Mrc
 
 def otfAssignment(string):
@@ -89,6 +89,9 @@ if __name__ == '__main__':
 		if not regFile:
 				regFile = pickRegFile(fname,args['regdir'])
 		registeredFile, maxProj = matlabReg(reconstructed,regFile,args['refchannel'],args['domax']) # will be a list
+	elif args['domax']:
+		maxProj = maxprj(reconstructed)
+
 
 	# cleanup the file that was made
 	if timecropped:
@@ -101,10 +104,10 @@ if __name__ == '__main__':
 	# 'Files Ready:' string in the response.
 	print ""
 	print "Files Ready:"
-	if reconstructed: print "Reconstruction: %s" % reconstructed
-	if logFile: print "LogFile: %s" % logFile
-	if registeredFile: print "Registered: %s" % registeredFile
-	if maxProj: print "maxProj: %s" % maxProj
+	if reconstructed: print "FILE READY - Reconstruction: %s" % reconstructed
+	if logFile: print "FILE READY - LogFile: %s" % logFile
+	if registeredFile: print "FILE READY - Registered: %s" % registeredFile
+	if maxProj: print "FILE READY - maxProj: %s" % maxProj
 
 	# this is important for the updateStatusBar function in gui.py
 	print "Done"

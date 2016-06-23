@@ -329,6 +329,8 @@ def send_command(remotefile, mode):
 								print "Best OTF for %s: %s" %(k,v)
 								statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
 					
+					# this will not work if the server doesn't send all of the text in a single receive
+					# increasing loop time might help... but doesn't fix the fundamental problem
 					if 'Files Ready:' in r:
 						i = r.index('Files Ready:') + 1
 						filelist = []
@@ -350,17 +352,17 @@ def send_command(remotefile, mode):
 				
 				else:
 					# response was empty...
-					root.after(300, receive_command_response, ssh)
+					root.after(500, receive_command_response, ssh)
 
 			else:
-				# if there's nothing ready to receive, wait another second
-				root.after(300, receive_command_response, ssh)
+				# if there's nothing ready to receive, wait another while
+				root.after(500, receive_command_response, ssh)
 
 		else:
 			print('Unexpected server status: %s' % Server['status'])
 			raise ValueError('Unexpected server status: %s' % Server['status'])
 
-	root.after(300, receive_command_response, ssh)
+	root.after(500, receive_command_response, ssh)
 
 
 def activateWaves(waves):
