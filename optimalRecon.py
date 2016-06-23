@@ -52,6 +52,7 @@ if __name__ == '__main__':
 		print ""
 		print "Best OTFs:"
 		print bestOTFs
+		
 
 	# THIS IS NOT JUST FOR READOUT
 	# these lines  trigger the gui.py program to download the files
@@ -60,11 +61,11 @@ if __name__ == '__main__':
 	# 'Files Ready:' string in the response.
 	print ""
 	print "Files Ready:"
-	if reconstructed: print "Reconstruction: %s" % reconstructed
-	if logFile: print "LogFile: %s" % logFile
-	if registeredFile: print "Registered: %s" % registeredFile
-	if maxProj: print "maxProj: %s" % maxProj
-	if scoreFile: print "ScoreCSV: %s" % scoreFile
+	if reconstructed: print "FILE READY - Reconstruction: %s" % reconstructed
+	if logFile: print "FILE READY - LogFile: %s" % logFile
+	if registeredFile: print "FILE READY - Registered: %s" % registeredFile
+	if maxProj: print "FILE READY - maxProj: %s" % maxProj
+	if scoreFile: print "FILE READY - ScoreCSV: %s" % scoreFile
 
 	# this is important for the updateStatusBar function in gui.py
 	print "Done"
