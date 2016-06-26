@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import config
-from __init__ import reconstructMulti, goodChannel, cropCheck, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprjmm
+from __init__ import reconstructMulti, goodChannel, cropCheck, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprj
 import Mrc
 
 def otfAssignment(string):
@@ -75,10 +75,10 @@ if __name__ == '__main__':
 				print "Channel %d requested, but not in file... skipping" % c
 		reconWaves=sorted([c for c in args['channels'] if c in waves])
 	else:
-		reconWaves= waves
+		reconWaves=None
 
 	# perform reconstruction
-	reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=args['channels'], wiener=args['wiener'], outFile=args['outputFile'], configDir=args['configDir'])
+	reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=reconWaves, wiener=args['wiener'], outFile=args['outputFile'], configDir=args['configDir'])
 
 	registeredFile=None 
 	maxProj=None

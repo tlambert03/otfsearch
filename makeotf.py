@@ -69,6 +69,35 @@ def batchmakeotf(directory):
 				#	outfile
 				#makeotf(F)
 
+def searchparams(file, angle=1):
+
+	import matplotlib.pyplot as plt
+	import Mrc
+	import numpy as np
+
+	otfs =[]
+	krange=range(1,4)
+	narange=np.linspace(1.52,1.52,1)
+	for k in krange:
+		for NA in narange:
+			otf = M.makeotf('/Users/talley/Desktop/528_testotf.dv', outfile='/Users/talley/Desktop/otfs/otfs528_testotf'+str(int(NA*100))+"_"+str(k)+".otf", na=NA, nimm=1.52, angle=angle, leavekz=(8,9,k) )
+			otfs.append(otf)
+
+	fig = plt.figure()
+	for i in range(len(otfs)):
+		indat = Mrc.bindFile(otfs[i])
+		amplitude = np.sqrt(np.power(indat.imag,2)+np.power(indat.real,2))[:,]
+		gamcor = (amplitude / 1000535.)**(1/2.5)
+
+		ax = fig.add_subplot(len(krange), len(narange), i+1)
+		ax.imshow(gamcor[2])
+		ax.autoscale(True)
+		ax.set_title(str(i))
+		#axarr[i/len(krange), i%len(narange)].imshow(gamcor[1])
+		#axarr[i/len(krange), i%len(narange)].set_title('NA %s, k2 %s' %(narange[i%len(narange)], krange[i/len(krange)] ))
+
+	plt.show()
+
 
 def makeotf(infile, outfile=None, nimm=1.515, na=1.42, beaddiam=0.11, angle=None, fixorigin=(3,20), background=None, leavekz='auto'):
 	if outfile is None:

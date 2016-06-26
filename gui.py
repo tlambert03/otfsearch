@@ -360,7 +360,7 @@ def send_command(remotefile, mode):
 
 		else:
 			print('Unexpected server status: %s' % Server['status'])
-			raise ValueError('Unexpected server status: %s' % Server['status'])
+			#raise ValueError('Unexpected server status: %s' % Server['status'])
 
 	root.after(500, receive_command_response, ssh)
 

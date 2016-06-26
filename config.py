@@ -49,9 +49,9 @@ maxAge = None
 # max number of OTFs to use in search process
 maxNum = None
 # minimum OTF oil RI to use in search
-oilMin = 1510
+oilMin = 1512
 # maximum OTF oil RI to use in seach
-oilMax = 1522
+oilMax = 1520
 # whether to save the CSV file after scoring all the OTFS
 writeCSV = True
 
