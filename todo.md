@@ -33,5 +33,5 @@ add ability to subsection Z-divs
 
 <!-- bugs -->
 
-
+prevent registration when only a single channel is selected in a multichannel file
 invalid switch for -nimm in makeotf when nimm!=1.515...

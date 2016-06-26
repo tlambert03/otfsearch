@@ -259,6 +259,7 @@ def send_command(remotefile, mode):
 		if timepoints.get().strip():
 			command.extend(['-t', timepoints.get()])
 		selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
+		command.extend(['-c', " ".join([str(n) for n in sorted(selected_channels)])])
 		for c in selected_channels:
 			command.extend(['-o', "=".join([str(c), channelOTFPaths[c].get()])])
 		if doMax.get(): command.append('-x')
@@ -314,10 +315,16 @@ def send_command(remotefile, mode):
 				if response != '': 
 					statusTxt.set("Receiving feedback from server ... see text area above for details.")
 					r = [r for r in response.splitlines() if r and r != '']
-					r = filter(lambda a: a not in junkresponses, r)
-					textArea.insert(Tk.END, "\n".join(r))
-					textArea.insert(Tk.END, "\n")
-					textArea.yview(Tk.END)
+					#r = filter(lambda a: a not in junkresponses, r)
+
+					for i in r:
+						if i not in junkresponses:
+							if 'WARNING' in i:
+								pass
+							else:
+								textArea.insert(Tk.END, i + "\n")
+								#textArea.insert(Tk.END, "\n")
+								textArea.yview(Tk.END)
 
 					if 'Best OTFs:' in r:
 						otfdict = r[r.index('Best OTFs:') + 1]

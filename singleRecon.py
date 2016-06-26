@@ -83,6 +83,7 @@ if __name__ == '__main__':
 	registeredFile=None 
 	maxProj=None
 
+	# TODO: add check for len(reconwaves>1) here as well
 	if args['doreg'] and numWaves>1: # perform channel registration
 		#print "perfoming channel registration in matlab..."
 		regFile = args['regfile']
