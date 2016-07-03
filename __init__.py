@@ -702,9 +702,15 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 				raise Exception("Columns and column order of dataframe and csv file do not match!!")
 			else:
 				scoreDF.to_csv(config.masterScoreCSV, mode='a', index=False, header=False)
+				cleanupDupes(config.masterScoreCSV)
 
 
 	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
+
+def cleanupDupes(csvFile=config.masterScoreCSV):
+	import pandas as pd
+	df = pd.DataFrame.from_csv(csvFile)
+	df.drop_duplicates().to_csv(csvFile)
 
 
 
