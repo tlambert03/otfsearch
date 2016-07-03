@@ -9,6 +9,8 @@ username = 'user'
 
 priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
 
+masterScoreCSV = '/mnt/data0/SIMrecon/scores_master.csv'
+
 # DIRECTORIES ON THE RECONSTRUCTION SERVER
 # temp folder where files will get uploaded to
 remotepath = '/mnt/data0/remote/'

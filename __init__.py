@@ -658,7 +658,7 @@ def pickRegFile(fname,directory,filestring=None):
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
-							maxNum=config.maxNum, writeCSV=config.writeCSV, OTFdir=config.OTFdir, 
+							maxNum=config.maxNum, writeCSV=config.writeCSV, appendtomaster=True, OTFdir=config.OTFdir, 
 							reconWaves=None, forceChannels=None, regFile=None, regdir=config.regFileDir,
 							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
@@ -693,6 +693,16 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		scoreDF = pd.DataFrame(allScores)
 		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
 		scoreDF.to_csv(scoreFile)
+		if appendtomaster: # write the file to csv
+			if not os.path.isfile(config.masterScoreCSV):
+				scoreDF.to_csv(config.masterScoreCSV, mode='a', index=False)
+			elif len(scoreDF.columns) != len(pd.read_csv(config.masterScoreCSV, nrows=1).columns):
+				raise Exception("Columns do not match!! new scores have " + str(len(scoreDF.columns)) + " columns. CSV file has " + str(len(pd.read_csv(config.masterScoreCSV, nrows=1).columns)) + " columns.")
+			elif not (scoreDF.columns == pd.read_csv(config.masterScoreCSV, nrows=1).columns).all():
+				raise Exception("Columns and column order of dataframe and csv file do not match!!")
+			else:
+				scoreDF.to_csv(config.masterScoreCSV, mode='a', index=False, header=False)
+
 
 	return (bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile)
 
