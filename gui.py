@@ -385,7 +385,7 @@ def deactivateWaves(waves):
 
 
 def getRawFile():
-	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv')])
+	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv'), ('MRC Files', '.mrc')])
 	setRawFile(filename)
 
 
