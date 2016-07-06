@@ -11,9 +11,6 @@ allow option not to overwrite existing files
 add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct
-allow option to only do optimized search for first file in batch
-
-Add pseudowidefield
 
 
 <!-- nice but low priority -->
@@ -38,4 +35,3 @@ add ability to subsection Z-divs
 
 prevent registration when only a single channel is selected in a multichannel file
 invalid switch for -nimm in makeotf when nimm!=1.515...
-fix default OTF file path on windows computer
