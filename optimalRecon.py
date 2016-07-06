@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	parser.add_argument('-g','--doreg', help='perform channel registration', default=config.doReg)
 	parser.add_argument('-w','--writefile', help='write score results to csv file', default=config.writeCSV, action='store_true')
 	parser.add_argument('-q','--quiet', help='suppress feedback during reconstructions', default=False, action='store_true')
-	parser.add_argument('-o','--optout', help='dont store scores in master CSV file', default=False, action='store_true')
+	parser.add_argument('--optout', help='dont store scores in master CSV file', default=True, action='store_false')
 	parser.add_argument('--version', action='version', version='%(prog)s 0.1')
 
 	args = vars(parser.parse_args())

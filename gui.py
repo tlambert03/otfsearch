@@ -298,7 +298,7 @@ def send_command(remotefile, mode):
 			if not c == forceChannels[c].get():
 				command.extend(['-f', "=".join([str(c), str(forceChannels[c].get())])])
 		if optOut.get():
-			command.append('-o')
+			command.append('--optout')
 
 	else:
 		raise ValueError('Uknown command mode: %s' % mode)
