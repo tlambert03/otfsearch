@@ -271,8 +271,8 @@ def send_command(remotefile, mode):
 	elif mode == 'single':
 		command = ['python', C.remoteSpecificScript, remotefile,
 					'--regfile', RegFile.get(), '-r', RefChannel.get()]
-		if wiener.get().strip():
-			command.extend(['-w', wiener.get()])
+		if wienerspec.get().strip():
+			command.extend(['-w', wienerspec.get()])
 		if timepoints.get().strip():
 			command.extend(['-t', timepoints.get()])
 		selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
@@ -291,6 +291,8 @@ def send_command(remotefile, mode):
 			command.extend(['-a', maxOTFage.get()])
 		if maxOTFnum.get().strip():
 			command.extend(['-n', maxOTFnum.get()])
+		if wieneropt.get().strip():
+			command.extend(['-w', wieneropt.get()])
 		selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
 		if selected_channels:
 			command.extend(['-c', " ".join([str(n) for n in sorted(selected_channels)])])
@@ -435,9 +437,12 @@ def entriesValid(silent=False, mode=None):
 		errors.append(["Optimized Reconstruction Input Error","Oil max must be an integer between 1510 and 1530"])
 	if not cropsize.get().isdigit() or not int(cropsize.get()) in C.valid['cropsize']:
 		errors.append(["Optimized Reconstruction Input Error","Cropsize must be a power of 2 <= 512"])
-	if wiener.get().strip():
-		if float(wiener.get())>0.2 or float(wiener.get()) < 0:
-			errors.append(["Wiener Constant Error","Wiener constant must be between 0-0.2"])
+	if wienerspec.get().strip():
+		if float(wienerspec.get())>0.2 or float(wienerspec.get()) < 0:
+			errors.append(["Wiener Constant Error","Wiener constant (Specified OTF tab) must be between 0-0.2"])
+	if wieneropt.get().strip():
+		if float(wieneropt.get())>0.2 or float(wieneropt.get()) < 0:
+			errors.append(["Wiener Constant Error","Wiener constant (Optimized tab) must be between 0-0.2"])
 	if doReg.get() or mode=='register':
 		waves = [i for i in Mrc.open(rawFilePath.get()).hdr.wave if i != 0]
 		if not int(RefChannel.get()) in waves:
@@ -948,6 +953,8 @@ OilMax = Tk.StringVar()
 OilMax.set(C.oilMax)
 forceChannels = {}
 forceChannelsMenus = {}
+wieneropt = Tk.StringVar()
+wieneropt.set(C.wiener)
 
 #left side
 Tk.Label(otfsearchFrame, text="Limit OTFs used in search",
@@ -955,7 +962,7 @@ Tk.Label(otfsearchFrame, text="Limit OTFs used in search",
 	sticky='w')
 
 leftLabels = ['Max OTF age (days):', 'Max number OTFs:', 'Crop Size (pix):',
-	'Min Oil RI:', 'Max Oil RI:']
+	'Min Oil RI:', 'Max Oil RI:', 'Wiener:']
 for i in range(len(leftLabels)):
 	Tk.Label(otfsearchFrame, text=leftLabels[i]).grid(row=i+1, sticky='E')
 
@@ -964,6 +971,7 @@ Tk.Entry(otfsearchFrame, textvariable=maxOTFnum).grid(row=2, column=1)
 Tk.Entry(otfsearchFrame, textvariable=cropsize).grid(row=3, column=1)
 Tk.Entry(otfsearchFrame, textvariable=OilMin).grid(row=4, column=1)
 Tk.Entry(otfsearchFrame, textvariable=OilMax).grid(row=5, column=1)
+Tk.Entry(otfsearchFrame, textvariable=wieneropt).grid(row=6, column=1)
 
 #right side
 Tk.Label(otfsearchFrame, text="Force specific images channel:OTF pairings",
@@ -987,8 +995,8 @@ Tk.Button(otfsearchFrame, text="Run OTF Search",
 # SINGLE RECON TAB
 
 #variables
-wiener = Tk.StringVar()
-wiener.set(C.wiener)
+wienerspec = Tk.StringVar()
+wienerspec.set(C.wiener)
 background = Tk.StringVar()
 background.set(C.background)
 timepoints = Tk.StringVar()
@@ -1004,7 +1012,7 @@ Tk.Label(singleReconFrame,
 	sticky='w')
 
 Tk.Label(singleReconFrame, text='Wiener:').grid(row=1, column=0, sticky='E')
-wfe = Tk.Entry(singleReconFrame, textvariable=wiener, width=9)
+wfe = Tk.Entry(singleReconFrame, textvariable=wienerspec, width=9)
 wfe.grid(row=1, column=1)
 ToolTip(wfe, text='Wiener Filter',delay=200)
 
@@ -1060,8 +1068,8 @@ Tk.Button(registrationFrame, text ="Choose Image", command = getregCalImage).gri
 Tk.Label(registrationFrame, text='Iterations:').grid(row=5, column=0, sticky='e')
 calibrationIterationsEntry = Tk.Entry(registrationFrame, textvariable=calibrationIterations, width=15).grid(row=5, column=1, columnspan=1, sticky='W')
 Tk.Label(registrationFrame, text='Reference to:').grid(row=5, column=2, sticky='ew')
-o=allwaves
-o.insert(0,'all')
+o=['all']
+o.extend(allwaves)
 Tk.OptionMenu(registrationFrame, RegCalRef, *o).grid(row=5, column=3, sticky='W')
 Tk.Button(registrationFrame, text ="Calibrate", command = sendRegCal).grid(row=5, column=4, ipady=3, ipadx=10, sticky='ew')
 
@@ -1116,15 +1124,15 @@ Tk.Label(batchFrame, text='Batch apply optimized or single reconstruction to a d
 	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
 
 Tk.Label(batchFrame, text='Directory:').grid(row=1, sticky='e')
-Tk.Entry(batchFrame, textvariable=batchDir, width=50).grid(
-	row=1, column=1, columnspan=2, pady=8, sticky='W')
+Tk.Entry(batchFrame, textvariable=batchDir).grid(
+	row=1, column=1, columnspan=2, pady=8, sticky='eW')
 Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(
-	row=1, column=3, ipady=3, ipadx=10, padx=2)
+	row=1, column=3, ipady=3, ipadx=10, padx=2, sticky='w')
 
 Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dobatch, 'optimal'), 
-	width=25).grid(row=2, column=1, ipady=6, sticky='ew')
+	).grid(row=2, column=1, ipady=6, sticky='ew')
 Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'), 
-	width=25).grid(row=2, column=2, ipady=6, sticky='ew')
+	).grid(row=2, column=2, ipady=6, sticky='ew')
 
 Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimized reconstruction on first file (then use OTFs)').grid(
 	row=4, column=1, columnspan=3, sticky='W')

@@ -1,13 +1,10 @@
 <!-- features to add -->
 work on cleaning up and formatting response from update_status
-add opt-out button for scoring
 allow to create batch job for just image registration (tricky to decide which images)
-make regfile optional in gui (by selecting best one automatically)
 allow batch process for max projection only 
+make regfile optional in gui (by selecting best one automatically)
 add option for "forced" channel registration (assuming similar intensity distribution in two channels)
 add wiener to optimized reconstruction
-allow option not to overwrite existing files
-
 add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct

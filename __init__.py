@@ -142,12 +142,12 @@ def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
 	# and transpose to bring all ImgSeq types to type WZT
 	if imseq==0:
 		ordered = np.reshape(img,(nw,nt,nangles,nz,nphases,ny,nx))
-		ordered = np.transpose(o,(1,2,3,4,0,5,6))
+		ordered = np.transpose(ordered,(1,2,3,4,0,5,6))
 	elif imseq==1:
 		ordered = np.reshape(img,(nt,nangles,nz,nphases,nw,ny,nx))
 	elif imseq==2:
 		ordered = np.reshape(img,(nt,nw,nangles,nz,nphases,ny,nx))
-		ordered = np.transpose(o,(0,2,3,4,1,5,6))
+		ordered = np.transpose(ordered,(0,2,3,4,1,5,6))
 	else:
 		raise ValueError('Uknown image sequence in input file')
 	# average phases
@@ -196,12 +196,12 @@ def stackmath(fileIn, operator='max', axis='z', outFile=None):
 	# and transpose to bring all ImgSeq types to type WZT
 	if imseq==0:
 		ordered = np.reshape(img,(nw,nt,nz,ny,nx))
-		ordered = np.transpose(o,(1,2,0,3,4))
+		ordered = np.transpose(ordered,(1,2,0,3,4))
 	elif imseq==1:
 		ordered = np.reshape(img,(nt,nz,nw,ny,nx))
 	elif imseq==2:
 		ordered = np.reshape(img,(nt,nw,nz,ny,nx))
-		ordered = np.transpose(o,(0,2,1,3,4))
+		ordered = np.transpose(ordered,(0,2,1,3,4))
 	else:
 		raise ValueError('Uknown image sequence in input file')
 
@@ -767,7 +767,7 @@ def pickRegFile(fname,directory,filestring=None):
 	return 0
 
 
-def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, 
+def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, wiener=None,
 							maxNum=config.maxNum, writeCSV=config.writeCSV, appendtomaster=True, OTFdir=config.OTFdir, 
 							reconWaves=None, forceChannels=None, regFile=None, regdir=config.regFileDir,
 							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
@@ -782,7 +782,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
 	if verbose: print "reconstructing final file..."
-	reconstructed,logFile = reconstructMulti(fname, OTFdict=bestOTFs, reconWaves=reconWaves)
+	reconstructed,logFile = reconstructMulti(fname, OTFdict=bestOTFs, reconWaves=reconWaves, wiener=wiener)
 
 	numWaves = Mrc.open(reconstructed).hdr.NumWaves
 

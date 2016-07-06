@@ -18,6 +18,7 @@ if __name__ == '__main__':
 	parser.add_argument('-n','--num', help='max number of OTF files used', default=config.maxNum, type=int)
 	parser.add_argument('-l','--oilmin', help='min oil refractive index to search', default=config.oilMin, type=int, choices=config.valid['oilMin'], metavar='1510-1530')
 	parser.add_argument('-m','--oilmax', help='max oil refractive index to search', default=config.oilMax, type=int, choices=config.valid['oilMax'], metavar='1510-1530')
+	parser.add_argument('-w','--wiener', help='Wiener constant', default=None, type=float)
 	parser.add_argument('-f', '--force', help='Force OTF wave for specific channel in form: <CHAN>=<OTF>', 
 				metavar='<CHAN>=<OTF>', nargs=1, action='append',type=otfAssignment, default=[])
 				#parser.add_argument('-t','--time', help='number of timepoints to use', default=config.maxNum)
@@ -30,7 +31,7 @@ if __name__ == '__main__':
 	parser.add_argument('-r','--refchannel', help='reference channel for channel registration', default=config.refChannel, type=goodChannel)
 	parser.add_argument('-x','--domax', help='perform max projection after registration', type=bool, default=config.doMax)
 	parser.add_argument('-g','--doreg', help='perform channel registration', default=config.doReg)
-	parser.add_argument('-w','--writefile', help='write score results to csv file', default=config.writeCSV, action='store_true')
+	parser.add_argument('-s','--writefile', help='write score results to csv file', default=config.writeCSV, action='store_true')
 	parser.add_argument('-q','--quiet', help='suppress feedback during reconstructions', default=False, action='store_true')
 	parser.add_argument('--optout', help='dont store scores in master CSV file', default=True, action='store_false')
 	parser.add_argument('--version', action='version', version='%(prog)s 0.1')
