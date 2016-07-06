@@ -66,6 +66,8 @@ background = 90
 doReg = False
 # perform max projection by default
 doMax = False
+# perform pseudo WF by default
+doWF = False
 # name of matlab registration function (must be on MATLAB path)
 MatlabRegScript = 'omxreg'
 # default reference channel for registration

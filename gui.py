@@ -9,7 +9,7 @@ from ttk import Notebook, Style
 import sys
 import config as C
 import os
-from __init__ import isRawSIMfile
+from __init__ import isRawSIMfile, pseudoWF
 import threading
 from functools import partial
 from ast import literal_eval
@@ -54,20 +54,24 @@ def make_connection(host=None, user=None):
 	except socket.gaierror as e:
 		# bad server name?
 		tkMessageBox.showinfo('Connection Failed!', "bad servername?:\n " + host)
+		statusTxt.set('%s: Connection failed!' % server.get())
 		return 0
 	except paramiko.PasswordRequiredException as e:
 		# bad username?
 		tkMessageBox.showinfo('Connection Failed!', "bad username?\n " + user)
+		statusTxt.set('%s: Connection failed!' % server.get())
 		return 0
 	except paramiko.AuthenticationException as e:
 		# bad password/hostkey?
 		tkMessageBox.showinfo(
 			'Connection Failed!',
 			"Authentication error: no password/hostkey?")
+		statusTxt.set('%s: Connection failed!' % server.get())
 		return 0
 	except Exception as e:
 		print e
 		tkMessageBox.showinfo('Connection Failed!', e)
+		statusTxt.set('%s: Connection failed!' % server.get())
 		return 0
 	return ssh
 
@@ -85,7 +89,7 @@ def test_connect():
 	if make_connection():
 		tkMessageBox.showinfo('Yay!', '%s\nConnection successfull!' % server.get())
 	else:
-		statusTxt.set('Aw snap.', '%s\nConnection failed!' % server.get())
+		statusTxt.set('%s: Connection failed!' % server.get())
 
 
 def upload(file, remotepath, mode):
@@ -167,8 +171,18 @@ def sftp_get(filelist):
 		# local download path pulled from current rawpath
 		# this could lead to problems if the user changes 
 		# it in the meantime...
-		localpath = os.path.dirname(rawFilePath.get())
-		sftp.get(f, os.path.join(localpath, os.path.basename(f)), callback=sftp_progress)
+		localpath = os.path.join(os.path.dirname(rawFilePath.get()), os.path.basename(f))
+		if not overwrite.get():
+			while os.path.exists(localpath):
+				namesplit = os.path.splitext(localpath)
+				i=namesplit[0][-2:]
+				if i.isdigit():
+					s = int(i)+1
+					localpath=namesplit[0][:-2]+'%02d'%s+namesplit[1]
+				else:
+					localpath=namesplit[0]+'01'+namesplit[1]
+
+		sftp.get(f, localpath, callback=sftp_progress)
 		print("done!")
 	sftp.close()
 	ssh.close()
@@ -283,6 +297,8 @@ def send_command(remotefile, mode):
 			# build the "force channels" commands
 			if not c == forceChannels[c].get():
 				command.extend(['-f', "=".join([str(c), str(forceChannels[c].get())])])
+		if optOut.get():
+			command.append('-o')
 
 	else:
 		raise ValueError('Uknown command mode: %s' % mode)
@@ -473,8 +489,12 @@ def getregCalImage():
 
 
 def getRegFile():
-	ssh = make_connection()
-	sftp = ssh.open_sftp()
+	try:
+		ssh = make_connection()
+		sftp = ssh.open_sftp()
+	except:
+
+		return 0
 	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat')])
 
 	top = Tk.Toplevel()
@@ -602,6 +622,10 @@ def processFile(mode):
 	V = entriesValid(mode)
 	if V[0]:
 		upload(inputfile, C.remotepath, mode)
+		if doWF.get() and (mode=='optimal' or mode=='single'):
+			thr = threading.Thread(target=pseudoWF, args=(inputfile,))
+			thr.start()
+
 	else:
 		textArea.insert(Tk.END, "Invalid settings!\n")
 		[textArea.insert(Tk.END, ": ".join(e) + "\n" ) for e in V[1]]
@@ -723,7 +747,7 @@ statusFrame = Tk.Frame(root) # Statusbar Frame
 # add individual tab frames
 otfsearchFrame = Tk.Frame(Nb, padx=5, pady=8)
 singleReconFrame = Tk.Frame(Nb, padx=5, pady=8)
-serverFrame = Tk.Frame(Nb, padx=5, pady=8)
+settingsFrame = Tk.Frame(Nb, padx=5, pady=8)
 batchFrame = Tk.Frame(Nb, padx=5, pady=8)
 registrationFrame = Tk.Frame(Nb, padx=5, pady=8)
 helpFrame = Tk.Frame(Nb, padx=5, pady=8)
@@ -731,7 +755,7 @@ Nb.add(otfsearchFrame, text='Optimized Reconstruction')
 Nb.add(singleReconFrame, text='Specify OTFs')
 Nb.add(registrationFrame, text='Channel Registration')
 Nb.add(batchFrame, text='Batch')
-Nb.add(serverFrame, text='Server')
+Nb.add(settingsFrame, text='Settings')
 Nb.add(helpFrame, text='Help')
 
 # pack the main frames into the top window
@@ -752,6 +776,8 @@ doReg = Tk.IntVar()
 doReg.set(C.doReg)
 doMax = Tk.IntVar()
 doMax.set(C.doMax)
+doWF = Tk.IntVar()
+doWF.set(C.doWF)
 
 Tk.Label(top_frame, text='Input File:').grid(row=0, sticky='e')
 Tk.Entry(top_frame, textvariable=rawFilePath, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
@@ -773,8 +799,10 @@ RefChannelEntry.grid(row=2, column=1, sticky='W')
 Tk.Checkbutton(top_frame, variable=doReg,
 	text='Do registration', command=lambda e=RefChannelEntry, v=doReg: naccheck(e,v)).grid(
 	row=2, column=2, columnspan=2, sticky='W')
-Tk.Checkbutton(top_frame, variable=doMax, text='Do max projection').grid(
-	row=2, column=4, columnspan=2, sticky='W')
+Tk.Checkbutton(top_frame, variable=doMax, text='Do max').grid(
+	row=2, column=4, sticky='W')
+Tk.Checkbutton(top_frame, variable=doWF, text='Do pseudoWF').grid(
+	row=2, column=5, columnspan=2, sticky='W')
 
 Tk.Button(top_frame, text ="Choose File", command=getRawFile).grid(
 	row=0, column=7, ipady=3, ipadx=7, sticky='ew')
@@ -868,7 +896,7 @@ for i in range(len(allwaves)):
 
 for i in range(len(allwaves)):
 	channelOTFPaths[allwaves[i]] = Tk.StringVar()
-	channelOTFPaths[allwaves[i]].set(os.path.join(C.defaultOTFdir,str(allwaves[i])+'.otf'))
+	channelOTFPaths[allwaves[i]].set("/".join([C.defaultOTFdir,str(allwaves[i])+'.otf']))
 	channelOTFEntries[allwaves[i]] = Tk.Entry(singleReconFrame, textvariable=channelOTFPaths[allwaves[i]])
 	channelOTFEntries[allwaves[i]].grid(row=i+2, column=1, columnspan=5, sticky='EW')
 	channelOTFButtons[allwaves[i]] = Tk.Button(singleReconFrame, text ="Select OTF", command=partial(getChannelOTF, allwaves[i]))
@@ -921,21 +949,33 @@ server.set(C.server)
 username = Tk.StringVar()
 username.set(C.username)
 
-Tk.Label(serverFrame, text='OTF Directory:').grid(row=0, sticky='e')
-Tk.Entry(serverFrame, textvariable=OTFdir, width=48).grid(row=0, column=1, columnspan=6, sticky='W')
+Tk.Label(settingsFrame, text='Server Settings:', font=('Helvetica', 13, 'bold')).grid(row=0, column=0, columnspan=5, sticky='w')
 
-Tk.Label(serverFrame, text='SIR config Dir:').grid(row=1, sticky='e')
-Tk.Entry(serverFrame, textvariable=SIRconfigDir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
+Tk.Label(settingsFrame, text='OTF Directory:').grid(row=1, sticky='e')
+Tk.Entry(settingsFrame, textvariable=OTFdir, width=48).grid(row=1, column=1, columnspan=6, sticky='W')
 
-Tk.Label(serverFrame, text='Server Address:').grid(row=3, sticky='e')
-Tk.Entry(serverFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
+Tk.Label(settingsFrame, text='SIR config Dir:').grid(row=2, sticky='e')
+Tk.Entry(settingsFrame, textvariable=SIRconfigDir, width=48).grid(row=2, column=1, columnspan=6, sticky='W')
 
-Tk.Label(serverFrame, text='Username:').grid(row=4, sticky='e')
-Tk.Entry(serverFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
+Tk.Label(settingsFrame, text='Server Address:').grid(row=3, sticky='e')
+Tk.Entry(settingsFrame, textvariable=server, width=48).grid(row=3, column=1, columnspan=6, sticky='W')
 
-Tk.Button(serverFrame, text="Test Connection", command=test_connect,
+Tk.Label(settingsFrame, text='Username:').grid(row=4, sticky='e')
+Tk.Entry(settingsFrame, textvariable=username, width=48).grid(row=4, column=1, columnspan=6, sticky='W')
+
+Tk.Button(settingsFrame, text="Test Connection", command=test_connect,
 	width=12).grid(row=5, column=1, columnspan=2, ipady=6, ipadx=6, sticky='w')
 
+Tk.Label(settingsFrame, text='Misc Settings:', font=('Helvetica', 13, 'bold')).grid(row=6, column=0, columnspan=5, sticky='w', pady=(10,0))
+
+overwrite = Tk.IntVar()
+overwrite.set(1)
+Tk.Checkbutton(settingsFrame, variable=overwrite, text='Overwrite local files when downloading (increment name if unchecked)').grid(
+	row=7, column=0, columnspan=4, sticky='W')
+optOut = Tk.IntVar()
+optOut.set(0)
+Tk.Checkbutton(settingsFrame, variable=optOut, text='Opt out of reconstruction score collection (no images are saved in score collection)').grid(
+	row=8, column=0, columnspan=4, sticky='W')
 
 # BATCH TAB
 

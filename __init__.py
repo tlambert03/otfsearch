@@ -82,8 +82,6 @@ def callPriism(command=None):
 		os.environ['IVE_SIZE']='27000'
 		os.environ['IVE_WORKING_UNIT']='128'
 		# IVE_ENV_SETUP={ test -r '/Users/talley/Dropbox/NIC/software/priism-4.4.1/Priism_setup.sh' && . '/Users/talley/Dropbox/NIC/software/priism-4.4.1/Priism_setup.sh' ; } || exit 1
-
-
 	if command:
 		try:
 			subprocess.call(command)
@@ -124,9 +122,122 @@ def maxprj(fname, outFile=None):
 	numTimes = header.NumTimes
 	imSize = header.Num
 	numplanes = imSize[2]/(numTimes*numWaves)
-	print " ".join([ 'RunProj', fname, outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
 	callPriism([ 'RunProj', fname, outFile, '-z_step=%d'%numplanes, '-z_group=%d'%numplanes, '-max_z' ])
 	return outFile
+
+def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
+	"""Generate pseudo-widefield image from raw SIM stack
+	by averaging phases together"""
+	img = Mrc.bindFile(fileIn)
+	nt = img.Mrc.hdr.NumTimes
+	nw = img.Mrc.hdr.NumWaves
+	nx = img.Mrc.hdr.Num[0]
+	ny = img.Mrc.hdr.Num[1]
+	nz = img.Mrc.hdr.Num[2] / (nphases * nangles * nw * nt)
+	imseq = img.Mrc.hdr.ImgSequence
+		# 0 = ZTW
+		# 1 = WZT
+		# 2 = ZWT
+	# reshape array to separate phases and angles from Z
+	# and transpose to bring all ImgSeq types to type WZT
+	if imseq==0:
+		ordered = np.reshape(img,(nw,nt,nangles,nz,nphases,ny,nx))
+		ordered = np.transpose(o,(1,2,3,4,0,5,6))
+	elif imseq==1:
+		ordered = np.reshape(img,(nt,nangles,nz,nphases,nw,ny,nx))
+	elif imseq==2:
+		ordered = np.reshape(img,(nt,nw,nangles,nz,nphases,ny,nx))
+		ordered = np.transpose(o,(0,2,3,4,1,5,6))
+	else:
+		raise ValueError('Uknown image sequence in input file')
+	# average phases
+	imgavg = np.mean(ordered, 3, img.dtype)
+	# now order is (nt, na, nz, nw, ny, nx)
+	if extract:
+		if not extract in range(1,4):
+			print('extracted angle must be between 1 and %d' % nangles)
+			print('chosing angle 1')
+			extract=1
+		imgavg = imgavg[:,extract-1,:,:,:,:]
+	else:
+		#further average over all angles
+		imgavg = np.mean(imgavg, 1, img.dtype)
+	imgavg = np.squeeze(imgavg)
+	if imgavg.ndim>4:
+		raise ValueError('ERROR: pseudo widefield function cannot accept 5d images!') 
+	hdr = Mrc.makeHdrArray()
+	Mrc.initHdrArrayFrom(hdr, img.Mrc.hdr)
+	hdr.ImgSequence=1
+
+	if outFile is None:
+		namesplit = os.path.splitext(fileIn)
+		outFile=namesplit[0]+"_WF"+namesplit[1]
+	if not (outFile is fileIn):
+		try:
+			Mrc.save(imgavg, outFile, hdr = hdr, ifExists='overwrite')
+		except ValueError as e:
+			print e
+	#return outFile
+
+def stackmath(fileIn, operator='max', axis='z', outFile=None):
+	"""Generate pseudo-widefield image from raw SIM stack
+	by averaging phases together"""
+	img = Mrc.bindFile(fileIn)
+	nt = img.Mrc.hdr.NumTimes
+	nw = img.Mrc.hdr.NumWaves
+	nx = img.Mrc.hdr.Num[0]
+	ny = img.Mrc.hdr.Num[1]
+	nz = img.Mrc.hdr.Num[2] / (nw * nt)
+	imseq = img.Mrc.hdr.ImgSequence
+		# 0 = ZTW
+		# 1 = WZT
+		# 2 = ZWT
+	# reshape array to separate phases and angles from Z
+	# and transpose to bring all ImgSeq types to type WZT
+	if imseq==0:
+		ordered = np.reshape(img,(nw,nt,nz,ny,nx))
+		ordered = np.transpose(o,(1,2,0,3,4))
+	elif imseq==1:
+		ordered = np.reshape(img,(nt,nz,nw,ny,nx))
+	elif imseq==2:
+		ordered = np.reshape(img,(nt,nw,nz,ny,nx))
+		ordered = np.transpose(o,(0,2,1,3,4))
+	else:
+		raise ValueError('Uknown image sequence in input file')
+
+	axtoindex={'t': 0, 'z': 1, 'w': 2, 'c': 2}
+
+	if operator=='max' or operator=='maximum':
+		proj = np.max(ordered, axtoindex[axis])
+	elif operator=='sum':
+		proj = np.sum(ordered, axtoindex[axis])
+	elif operator=='std' or operator=='stdev':
+		proj = np.std(ordered, axtoindex[axis])
+	elif operator=='med' or operator=='median':
+		proj = np.std(ordered, axtoindex[axis])
+	elif operator=='avg' or operator=='average':
+		proj = np.average(ordered, axtoindex[axis])
+	else:
+		raise ValueError('operator must be: max, sum, std, med, or avg')
+
+	proj = np.squeeze(proj)
+
+	if proj.ndim>4:
+		raise ValueError('Mrc.py cannot write 5D .dv images') 
+	hdr = Mrc.makeHdrArray()
+	Mrc.initHdrArrayFrom(hdr, img.Mrc.hdr)
+	hdr.ImgSequence=1
+	
+	if outFile is None:
+		namesplit = os.path.splitext(fileIn)
+		outFile=namesplit[0]+"_"+operator.upper()+namesplit[1]
+
+	if not (outFile is fileIn):
+		try:
+			Mrc.save(proj, outFile, hdr = hdr, ifExists='overwrite')
+		except ValueError as e:
+			print e
+
 
 
 def croptime(fileIn, fileOut=None, start=1, end=1, step=1):
@@ -386,7 +497,6 @@ def getSAM(im):
 
 
 def CIP(im):
-
 	phases = 5 # phases
 	nz = im.shape[-3] # shape gives (c, t, z, y, x)
 	angles = 3 #angles
@@ -693,7 +803,7 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		scoreDF = pd.DataFrame(allScores)
 		scoreFile = os.path.splitext(fname)[0]+"_scores.csv"
 		scoreDF.to_csv(scoreFile)
-		if appendtomaster: # write the file to csv
+		if appendtomaster: # write the file to master csv file with all the scores
 			if not os.path.isfile(config.masterScoreCSV):
 				scoreDF.to_csv(config.masterScoreCSV, mode='a', index=False)
 			elif len(scoreDF.columns) != len(pd.read_csv(config.masterScoreCSV, nrows=1).columns):

@@ -32,6 +32,7 @@ if __name__ == '__main__':
 	parser.add_argument('-g','--doreg', help='perform channel registration', default=config.doReg)
 	parser.add_argument('-w','--writefile', help='write score results to csv file', default=config.writeCSV, action='store_true')
 	parser.add_argument('-q','--quiet', help='suppress feedback during reconstructions', default=False, action='store_true')
+	parser.add_argument('-o','--optout', help='dont store scores in master CSV file', default=False, action='store_true')
 	parser.add_argument('--version', action='version', version='%(prog)s 0.1')
 
 	args = vars(parser.parse_args())
@@ -43,7 +44,8 @@ if __name__ == '__main__':
 	bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestReconstruction(args['inputFile'].name, 
 		cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], maxAge=args['age'], maxNum=args['num'], 
 		OTFdir=args['otfdir'], reconWaves=args['channels'], forceChannels=forceOTFdict, regFile=args['regfile'], regdir=args['regdir'], 
-		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeCSV=args['writefile'], cleanup=True, verbose=True,)
+		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeCSV=args['writefile'], 
+		appendtomaster=args['optout'], cleanup=True, verbose=True,)
 
 	# THIS IS NOT JUST FOR READOUT
 	# these lines  trigger the gui.py program set the specific OTF window

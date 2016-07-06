@@ -1,16 +1,19 @@
 <!-- features to add -->
 work on cleaning up and formatting response from update_status
-save results to master CSV file
 add opt-out button for scoring
-allow single image registration option without reconstruction
-allow to create batch job for just image registration
-make regfile optional in gui
+allow to create batch job for just image registration (tricky to decide which images)
+make regfile optional in gui (by selecting best one automatically)
 allow batch process for max projection only 
+add option for "forced" channel registration (assuming similar intensity distribution in two channels)
+add wiener to optimized reconstruction
+allow option not to overwrite existing files
 
 add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct
 allow option to only do optimized search for first file in batch
+
+Add pseudowidefield
 
 
 <!-- nice but low priority -->
@@ -35,3 +38,4 @@ add ability to subsection Z-divs
 
 prevent registration when only a single channel is selected in a multichannel file
 invalid switch for -nimm in makeotf when nimm!=1.515...
+fix default OTF file path on windows computer
