@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	for item in args['force']:
 		forceOTFdict[int(item[0][0])]=int(item[0][1])
 
-	bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestReconstruction(args['inputFile'].name, 
+	bestOTFs, reconstructed, logFile, registeredFile, maxProj, scoreFile = makeBestReconstruction(args['inputFile'].name, wiener=args['wiener'],
 		cropsize=args['crop'], oilMin=args['oilmin'], oilMax=args['oilmax'], maxAge=args['age'], maxNum=args['num'], 
 		OTFdir=args['otfdir'], reconWaves=args['channels'], forceChannels=forceOTFdict, regFile=args['regfile'], regdir=args['regdir'], 
 		refChannel=args['refchannel'], doMax=int(args['domax']), doReg=int(args['doreg']), writeCSV=args['writefile'], 
