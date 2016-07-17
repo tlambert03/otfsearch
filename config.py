@@ -7,7 +7,7 @@ import os
 server = 'cb-cbmf-latwork.med.harvard.edu'
 username = 'cbmf'
 
-priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
+priismpath = '/usr/local/priism'
 
 masterScoreCSV = '/mnt/data0/SIMrecon/scores_master.csv'
 
