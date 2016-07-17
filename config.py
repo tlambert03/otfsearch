@@ -5,7 +5,7 @@ import os
 # this program assumes the use of private keys for authentication
 # https://help.github.com/articles/generating-an-ssh-key/
 server = 'cb-cbmf-latwork.med.harvard.edu'
-username = 'user'
+username = 'cbmf'
 
 priismpath = '/Users/talley/Dropbox/NIC/software/priism-4.4.1'
 

@@ -151,10 +151,11 @@ def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
 	else:
 		raise ValueError('Uknown image sequence in input file')
 	# average phases
-	imgavg = np.mean(ordered, 3, img.dtype)
+	imgavg = np.mean(ordered, 3)
+	imgavg = imgavg.astype(img.dtype)
 	# now order is (nt, na, nz, nw, ny, nx)
 	if extract:
-		if not extract in range(1,4):
+		if not extract in range(1,nangles+1):
 			print('extracted angle must be between 1 and %d' % nangles)
 			print('chosing angle 1')
 			extract=1
@@ -735,13 +736,13 @@ def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 
 
 
-def matlabReg(fname,regFile,refChannel,doMax):
+def matlabReg(fname,regFile,refChannel,doMax,form='dv'):
 	maxbool = 'true' if doMax else 'false'
-	matlabString = "%s('%s','%s', %d,'DoMax', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool)
+	matlabString = "%s('%s','%s', %d,'DoMax', %s, 'format', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool,form)
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
-	registeredFile = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+".tif"
+	registeredFile = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"."+form
 	if doMax: 
-		maxProj = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"-MAX.tif"
+		maxProj = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"-MAX."+form
 	else:
 		maxProj = None
 	return (registeredFile, maxProj)
