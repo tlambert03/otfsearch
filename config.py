@@ -1,5 +1,4 @@
 """Configuration File."""
-import os 
 
 # CONNECTION TO REMOTE SERVER
 # this program assumes the use of private keys for authentication
