@@ -738,7 +738,7 @@ def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 
 def matlabReg(fname,regFile,refChannel,doMax,form='dv'):
 	maxbool = 'true' if doMax else 'false'
-	matlabString = "%s('%s','%s', %d,'DoMax', %s, 'format', %s);exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool,form)
+	matlabString = "%s('%s','%s', %d,'DoMax', %s, 'format', '%s');exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool,form)
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 	registeredFile = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"."+form
 	if doMax: 
