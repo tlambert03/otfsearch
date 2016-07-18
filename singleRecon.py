@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import config
-from __init__ import reconstructMulti, goodChannel, cropCheck, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprj
+from __init__ import reconstructMulti, goodChannel, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprj
 import Mrc
 
 def otfAssignment(string):
@@ -27,9 +27,9 @@ if __name__ == '__main__':
 	parser.add_argument('-c','--channels', help='channels to process (sep by spaces)', 
 					default=None, nargs="*", type=goodChannel, metavar='WAVE')
 	parser.add_argument('--configDir', help='Director with config files', default=config.SIconfigDir, metavar='DIR')
+	parser.add_argument('-b','--background', help='Background to subtract', default=None, type=int)
 	parser.add_argument('-w','--wiener', help='Wiener constant', default=None, type=float)
 	parser.add_argument('-t','--time', help='Cut to first N timepoints', default=None, type=int)
-	#parser.add_argument('-p','--crop', help='ROI crop size to use for testing', default=config.cropsize, type=cropCheck)
 	parser.add_argument('--regfile', help='Registration File', default=None, metavar='FILE')
 	parser.add_argument('--regdir', help='Directory with Reg files', default=config.regFile, metavar='FILE')
 	parser.add_argument('-r','--refchannel', help='reference channel for channel registration', 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
 	# crop to the first N timepoints if requested and appropriate
 	if args['time'] and args['time']>0 and numTimes > 1:
-		inputFile = cropTime(fname, end=args['time'])
+		inputFile = croptime(fname, end=args['time'])
 		timecropped = 1
 	else:
 		inputFile = fname
@@ -78,7 +78,9 @@ if __name__ == '__main__':
 		reconWaves=None
 
 	# perform reconstruction
-	reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, reconWaves=reconWaves, wiener=args['wiener'], outFile=args['outputFile'], configDir=args['configDir'])
+	reconstructed,logFile = reconstructMulti(inputFile, OTFdict=otfDict, 
+		reconWaves=reconWaves, wiener=args['wiener'], background=args['background'], 
+		outFile=args['outputFile'], configDir=args['configDir'])
 
 	registeredFile=None 
 	maxProj=None
@@ -89,7 +91,8 @@ if __name__ == '__main__':
 		regFile = args['regfile']
 		if not regFile:
 				regFile = pickRegFile(fname,args['regdir'])
-		registeredFile, maxProj = matlabReg(reconstructed,regFile,args['refchannel'],args['domax']) # will be a list
+		registeredFile, maxProj = matlabReg(reconstructed,regFile,
+									args['refchannel'],args['domax']) # will be a list
 	elif args['domax']:
 		maxProj = maxprj(reconstructed)
 

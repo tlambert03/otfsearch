@@ -9,6 +9,7 @@ add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
 add background to single reconstruct
 
+auto background subtraction?
 
 <!-- nice but low priority -->
 calculate more things for score dict...

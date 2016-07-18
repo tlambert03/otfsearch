@@ -300,7 +300,8 @@ def query_yes_no(question):
 
 
 # reconstruction
-def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, configDir=None):
+def reconstruct(inFile, otfFile, outFile=None, configFile=None, 
+				wiener=None, background=None, configDir=None):
 	wave = Mrc.open(inFile).hdr.wave[0]
 
 	if outFile is None:
@@ -319,6 +320,8 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, con
 	commandArray=[config.reconApp,inFile,outFile,otfFile,'-c',configFile]
 	if wiener:
 		commandArray.extend(['--wiener',str(wiener)])
+	if background:
+		commandArray.extend(['--background',str(background)])
 
 	
 	process = subprocess.Popen(commandArray, stdout=subprocess.PIPE)
@@ -330,7 +333,7 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None, wiener=None, con
 
 
 def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=None,
-							configDir=None, writeLog=True, logFile=None):
+					background=None,configDir=None, writeLog=True, logFile=None):
 	"""Splits multi-channel file into individual channels
 	then reconstructs each channel and merges the results
 	provide OTFdict as { '528' : '/path/to/528/otf', '608' : 'path/to/608/otf'}
@@ -343,7 +346,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 
 	header = Mrc.open(inFile).hdr
 	numWaves = header.NumWaves
-	waves = [i for i in header.wave if i != 0]
+	#waves = [i for i in header.wave if i != 0]
 
 	# split multi-channel files into component parts
 	if numWaves > 1:
@@ -369,7 +372,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
 		filesToMerge.append(procFile)
 		try:
-			reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, configDir=configDir), 
+			reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, background=background, configDir=configDir), 
 								'wave' : wave,
 								'otf'  : otf,
 								'file' : file,
@@ -449,8 +452,8 @@ def calcPosNegRatio(pc, bg, histMin, histMax, hist, nPixels):
 		bin -= 1
 		binValue -= histStep
 	#uncomment to check actual histogram bins used (pc and pixels)
-	nNegPixels = int(negPc * nPixels)
-	nPosPixels = int(posPc * nPixels)
+	#nNegPixels = int(negPc * nPixels)
+	#nPosPixels = int(posPc * nPixels)
 	#since negTotal may or may not be negative...
 	posNegRatio = float(abs(posTotal / negTotal))
 	return posNegRatio
@@ -458,10 +461,10 @@ def calcPosNegRatio(pc, bg, histMin, histMax, hist, nPixels):
 def getRIH(im):
 	percentile = 0.0001  	# use 0-100% of histogram extrema
 	minPixels = 100.0		# minimum pixels at histogram extrema to use
-	modeTol = 0.25  		# mode should be within modeTol*stdev of 0
+	#modeTol = 0.25  		# mode should be within modeTol*stdev of 0
 
-	nNegPixels = 0
-	nPosPixels = 0
+	#nNegPixels = 0
+	#nPosPixels = 0
 
 	flat = np.ndarray.flatten(im)
 	histMin = flat.min()
@@ -487,9 +490,9 @@ def getRIH(im):
 def getSAM(im):
 	from skimage import filters
 
-	hist=np.histogram(im,bins=1024);
-	stackMode = hist[1][np.argmax(hist[0])]
-	threshold = filters.threshold_otsu(im)
+	#hist=np.histogram(im,bins=1024);
+	#stackMode = hist[1][np.argmax(hist[0])]
+	#threshold = filters.threshold_otsu(im)
 	sliceMinima = [np.min(i) for i in im]
 	sliceMeans = [np.average(plane[np.where(plane > filters.threshold_otsu(plane))]) for plane in im]
 	avgmean = np.nanmean(sliceMeans)

@@ -273,6 +273,8 @@ def send_command(remotefile, mode):
 					'--regfile', RegFile.get(), '-r', RefChannel.get()]
 		if wienerspec.get().strip():
 			command.extend(['-w', wienerspec.get()])
+		if background.get().strip():
+			command.extend(['-b', background.get()])
 		if timepoints.get().strip():
 			command.extend(['-t', timepoints.get()])
 		selected_channels = [key for key, val in channelSelectVars.items() if val.get() == 1]
@@ -578,6 +580,7 @@ def getChannelOTF(var):
 		lb.delete(0, 'end')
 		for item in otflist:
 			lb.insert(Tk.END, os.path.basename(item))
+		global fullist
 		fullist = 1
 
 	def cancelOTF():
