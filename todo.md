@@ -4,12 +4,9 @@ allow to create batch job for just image registration (tricky to decide which im
 allow batch process for max projection only 
 make regfile optional in gui (by selecting best one automatically)
 add option for "forced" channel registration (assuming similar intensity distribution in two channels)
-add wiener to optimized reconstruction
 add options to channel registration calibration command
 make timepoints a string that can accept start:stop:step
-add background to single reconstruct
 
-auto background subtraction?
 
 <!-- nice but low priority -->
 calculate more things for score dict...
@@ -28,6 +25,7 @@ add more help
 consider using a smart regisatration file choice
 	create dictionary of regisration files that knows waves, daves, et...
 add ability to subsection Z-divs
+auto background subtraction?
 
 <!-- bugs -->
 

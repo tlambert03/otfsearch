@@ -133,7 +133,12 @@ def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
 	nw = img.Mrc.hdr.NumWaves
 	nx = img.Mrc.hdr.Num[0]
 	ny = img.Mrc.hdr.Num[1]
-	nz = img.Mrc.hdr.Num[2] / (nphases * nangles * nw * nt)
+	nz = float(img.Mrc.hdr.Num[2]) / (nphases * nangles * nw * nt)
+	# try to identify OTF files with nangles =1
+	if not nz%1==0:
+		print "Guessing nangles = 1 ..."
+		nangles=1
+		nz = img.Mrc.hdr.Num[2] / (nphases * nangles * nw * nt)
 	imseq = img.Mrc.hdr.ImgSequence
 		# 0 = ZTW
 		# 1 = WZT
@@ -154,6 +159,7 @@ def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
 	imgavg = np.mean(ordered, 3)
 	imgavg = imgavg.astype(img.dtype)
 	# now order is (nt, na, nz, nw, ny, nx)
+
 	if extract:
 		if not extract in range(1,nangles+1):
 			print('extracted angle must be between 1 and %d' % nangles)
@@ -458,7 +464,7 @@ def calcPosNegRatio(pc, bg, histMin, histMax, hist, nPixels):
 	posNegRatio = float(abs(posTotal / negTotal))
 	return posNegRatio
 
-def getRIH(im):
+def getRIH1(im):
 	percentile = 0.0001  	# use 0-100% of histogram extrema
 	minPixels = 100.0		# minimum pixels at histogram extrema to use
 	#modeTol = 0.25  		# mode should be within modeTol*stdev of 0
@@ -486,6 +492,14 @@ def getRIH(im):
 		print "! histogram minimum above background. unable to calculate +ve/-ve intensity ratio"
 		return 0.0
 
+def getRIH(im):
+	if im.Mrc.hdr.NumWaves > 1:
+		scores = [];
+		for i in im:
+			scores.append((getRIH1(i)))
+	else:
+		scores = getRIH1(im)
+	return scores
 
 def getSAM(im):
 	from skimage import filters

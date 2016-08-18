@@ -14,9 +14,12 @@ def splitAngles(infile, outdir=None):
 	nz = imSize[2]/(numTimes*numWaves)
 	for ang in range(1,config.nAngles+1):
 		if outdir:
-			outfile = os.path.join(outdir,("_a%d" % ang).join(os.path.splitext(os.path.basename(infile))))
+			#outfile = os.path.join(outdir,("_a%d" % ang).join(os.path.splitext(os.path.basename(infile))))
+			outfile = os.path.join(outdir,os.path.basename(infile).replace('visit_', "a%d_00" % ang))
 		else:
-			outfile = ("_a%d" % ang).join(os.path.splitext(infile))
+			#outfile = ("_a%d" % ang).join(os.path.splitext(infile))
+			outfile = infile.replace('visit_', "a%d_00" % ang)
+
 		callPriism([ 'CopyRegion', infile, outfile, '-z=%d:%d' % ((ang-1)*nz/3,ang*nz/3 - 1) ])
 
 
@@ -45,29 +48,18 @@ def batchmakeotf(directory):
 	# batch make otf
 	for angdir in list(set(angleDirs)):
 		for F in os.listdir(angdir):
-			if F.endswith('_a1.dv') or F.endswith('_a2.dv') or F.endswith('_a3.dv'):
-				if "_visit_" in F:
-					
-					# oh god the terrible horror of this code...
-					# the goal is simply to rename the file
-					s = F.split('_')
-					i = s.index('visit')
-					s.pop(i)
-					num = s.pop(i)
-					e = s.pop(-1).split(".")
-					e.append(str(num).zfill(3))
-					s.extend(e)
-					outfile = "_".join(s) + ".otf"
+			if ('a1' in F) or ('a2' in F) or ('a3' in F):
+				outfile = F.replace('dv','otf')
 
-					maxint = Mrc.open(os.path.join(angdir,F)).hdr.mmm1[1]
-					if maxint < config.otfSigRange[1] and maxint > config.otfSigRange[0]:
-						makeotf(os.path.join(angdir,F),os.path.join(angdir,outfile))
-					else:
-						print "skipping %s with maxint = %d" % (os.path.join(angdir,F),maxint)
-					os.remove(os.path.join(angdir,F))
-				#	visitnumber
-				#	outfile
-				#makeotf(F)
+				maxint = Mrc.open(os.path.join(angdir,F)).hdr.mmm1[1]
+				if maxint < config.otfSigRange[1] and maxint > config.otfSigRange[0]:
+					makeotf(os.path.join(angdir,F),os.path.join(angdir,outfile))
+				else:
+					print "skipping %s with maxint = %d" % (os.path.join(angdir,F),maxint)
+				os.remove(os.path.join(angdir,F))
+			#	visitnumber
+			#	outfile
+			#makeotf(F)
 
 def searchparams(file, angle=1):
 
@@ -101,7 +93,9 @@ def searchparams(file, angle=1):
 
 def makeotf(infile, outfile=None, nimm=1.515, na=1.42, beaddiam=0.11, angle=None, fixorigin=(3,20), background=None, leavekz='auto'):
 	if outfile is None:
-		outfile=os.path.splitext(infile)[0]+'.otf'
+		#outfile=os.path.splitext(infile)[0]+'.otf'
+		outfile = infile.replace('.dv','.otf')
+
 	header = Mrc.open(infile).hdr
 	wave = header.wave[0]
 
@@ -119,9 +113,9 @@ def makeotf(infile, outfile=None, nimm=1.515, na=1.42, beaddiam=0.11, angle=None
 
 	if leavekz == 'auto':
 		leaveKZs = {
-			435 : [7, 10, 3],
-			528 : [7, 10, 3],
-			608 : [7, 10, 3],
+			435 : [6, 7, 2],
+			528 : [7, 9, 2],
+			608 : [8, 10, 2],
 			683 : [8, 11, 2]
 		}
 		leavekz = leaveKZs[wave]
