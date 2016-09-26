@@ -1213,7 +1213,7 @@ root.geometry("%dx%d+%d+%d" % (size + (x, y)))
 root.resizable(0,0)
 
 # grab most recent regfile from server (this may also cause failure if no connection)
-# get_recent_regfile()
+get_recent_regfile()
 
 #START PROGRAM
 root.mainloop()
