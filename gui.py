@@ -408,11 +408,12 @@ def deactivateWaves(waves):
 
 
 def getRawFile():
-	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv'), ('MRC Files', '.mrc')])
+	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv'), ('MRC Files', '.mrc')], initialdir=lastdir)
 	setRawFile(filename)
 
 
 def setRawFile(filename):
+	lastdir=os.path.dirname(filename) # so that the filechoice opens in the same place next time
 	if filename:
 		rawFilePath.set( filename )
 		try:
@@ -573,7 +574,7 @@ def getChannelOTF(var):
 		else:
 			item = [selectedlist[int(item)] for item in items][0]
 		if item:
-			channelOTFPaths[var].set(os.path.join(OTFdir.get(), item))
+			channelOTFPaths[var].set(OTFdir.get() + '/' + item)
 		top.destroy()
 
 	def ShowAll():
@@ -865,6 +866,8 @@ Server = {
 	'progress' : (0,0),
 	'status' : None, # transferring, putDone, getDone, processing, canceled
 }
+lastdir=''
+
 
 ### SETUP MAIN WINDOW ###
 
@@ -1209,7 +1212,7 @@ root.geometry("%dx%d+%d+%d" % (size + (x, y)))
 root.resizable(0,0)
 
 # grab most recent regfile from server (this may also cause failure if no connection)
-get_recent_regfile()
+# get_recent_regfile()
 
 #START PROGRAM
 root.mainloop()
