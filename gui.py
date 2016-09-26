@@ -413,6 +413,7 @@ def getRawFile():
 
 
 def setRawFile(filename):
+	global lastdir
 	lastdir=os.path.dirname(filename) # so that the filechoice opens in the same place next time
 	if filename:
 		rawFilePath.set( filename )
