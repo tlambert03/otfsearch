@@ -853,7 +853,7 @@ class ToolTip:
 def get_recent_regfile():
 	ssh = make_connection()
 	sftp = ssh.open_sftp()
-	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat')])
+	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat') and "refs" not in item])
 	RegFile.set(os.path.join(C.regFileDir, reglist[-1]))
 
 #######################################################################################
