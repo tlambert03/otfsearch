@@ -9,7 +9,7 @@ from ttk import Notebook, Style
 import sys
 import config as C
 import os
-from __init__ import isRawSIMfile, isAlreadyProcessed, pseudoWF
+from __init__ import isRawSIMfile, isAlreadyProcessed, isaReconstruction, pseudoWF
 import threading
 from functools import partial
 from ast import literal_eval
@@ -467,7 +467,7 @@ def entriesValid(silent=False, mode=None):
 			errors.append(["Registration File Error","Cannot parse registration file name... for now, the filename must include 'waves_'... etc"])
 
 	selectedchannels = [key for key, val in channelSelectVars.items() if val.get() == 1]
-	if len(selectedchannels) == 0:
+	if len(selectedchannels) == 0 and not mode=='register':
 		errors.append(["Input Error","You must select at least one channel to reconstruct:"])
 	if len(errors):
 		if not silent:
@@ -674,11 +674,20 @@ def dobatch(mode):
 	for R, S, F in os.walk(directory):
 		for file in F:
 			fullpath = os.path.join(R, file)
-			if isRawSIMfile(fullpath):
-				if skipalreadyprocessed.get() and isAlreadyProcessed(fullpath):
-					pass
-				else:
-					batchlist.append(fullpath)
+			if mode=='register':
+				if isaReconstruction(fullpath):
+					header = Mrc.open(fullpath).hdr
+					numWaves = header.NumWaves
+					if numWaves > 1:
+						batchlist.append(fullpath)
+					else:
+						print("Skipping single-channel file: %s" % fullpath)
+			else:
+				if isRawSIMfile(fullpath):
+					if skipalreadyprocessed.get() and isAlreadyProcessed(fullpath):
+						pass
+					else:
+						batchlist.append(fullpath)
 
 	def callback(mode):
 
@@ -699,7 +708,7 @@ def dobatch(mode):
 					setRawFile(item)
 					V = entriesValid(silent=True)
 					if V[0]:
-						if onlyoptimizefirst.get() and Server['batchround']>1:
+						if onlyoptimizefirst.get() and Server['batchround']>1 and not mode=='register':
 							mode='single'
 						print("Current File: %s" % item)
 						processFile(mode)
@@ -719,7 +728,10 @@ def dobatch(mode):
 		Server['batchround']=1
 		callback(mode)
 	else:
-		statusTxt.set('No raw SIM files in directory!')
+		if mode=='register':
+			statusTxt.set('No (multi-channel) PROC files in directory!')
+		else:
+			statusTxt.set('No raw SIM files in directory!')
 
 
 def naccheck(entry, var):
@@ -1137,7 +1149,7 @@ onlyoptimizefirst.set(0)
 skipalreadyprocessed = Tk.IntVar()
 skipalreadyprocessed.set(1)
 
-Tk.Label(batchFrame, text='Batch apply optimized or single reconstruction to a directory of files.', 
+Tk.Label(batchFrame, text='Batch process a directory of files.', 
 	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
 
 Tk.Label(batchFrame, text='Directory:').grid(row=1, sticky='e')
@@ -1159,6 +1171,9 @@ Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimi
 
 Tk.Checkbutton(batchFrame, variable=skipalreadyprocessed, text='Skip files that have already been reconstructed').grid(
 	row=6, column=1, columnspan=3, sticky='W')
+
+Tk.Button(batchFrame, text="Batch register processed files", command=partial(dobatch, 'register'), 
+	).grid(row=7, column=1, ipady=6, sticky='ew')
 
 
 
@@ -1227,6 +1242,9 @@ try:
 	get_recent_regfile()
 except AttributeError as e:
 	print 'ERROR: Could not retrieve the most recent registration file!'
+except IOError as e:
+	print 'ERROR: could not find a good registration file!'
+	statusTxt.set('ERROR: could not find a good registration file!')
 
 #START PROGRAM
 root.mainloop()

@@ -308,16 +308,25 @@ def logIsTypeSI(file):
 		else:
 			continue 
 
-
-def isAlreadyProcessed(file):
+def isAlreadyProcessed(filename):
 	'''simple check to see if a _PROC or _SIR file already exists for a given file
 	'''
-	if os.path.exists(file.strip().replace('.dv','_PROC.dv')):
+	if filename.endswith('.dv'):
+		if os.path.exists(filename.replace('.dv','_PROC.dv')):
+			return 1
+		elif os.path.exists(filename.replace('.dv','_SIR.dv')):
+			return 1
+	return 0
+
+def isaReconstruction(filename):
+	'''simple check to see whether a file is a SIM reconstruction
+	(probably more elegant ways)
+	'''
+	if filename.endswith('PROC.dv'):
 		return 1
-	elif os.path.exists(file.strip().replace('.dv','_SIR.dv')):
+	elif filename.endswith('PROC_MAX.dv'):
 		return 1
-	else:
-		return 0
+	return 0
 
 def query_yes_no(question):
 	"""Ask a yes/no question via raw_input() and return their answer.

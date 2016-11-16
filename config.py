@@ -8,24 +8,24 @@ username = 'cbmf'
 
 priismpath = '/usr/local/priism'
 
-masterScoreCSV = '/mnt/data0/SIMrecon/scores_master.csv'
+masterScoreCSV = '/ssd/data0/SIMrecon/scores_master.csv'
 
 # DIRECTORIES ON THE RECONSTRUCTION SERVER
 # temp folder where files will get uploaded to
-remotepath = '/mnt/data0/remote/'
+remotepath = '/ssd/data0/remote/'
 # script to trigger optimized reconstruction
-remoteOptScript = '/mnt/data0/SIMrecon/otfsearch/optimalRecon.py'
+remoteOptScript = '/ssd/data0/SIMrecon/otfsearch/optimalRecon.py'
 # script to trigger single recon with specific OTFs
-remoteSpecificScript = '/mnt/data0/SIMrecon/otfsearch/singleRecon.py'
+remoteSpecificScript = '/ssd/data0/SIMrecon/otfsearch/singleRecon.py'
 # script to trigger single registration with specific OTFs
-remoteRegScript = '/mnt/data0/SIMrecon/otfsearch/register.py'
+remoteRegScript = '/ssd/data0/SIMrecon/otfsearch/register.py'
 # script to trigger channel registration calibration
-remoteRegCalibration = '/mnt/data0/SIMrecon/otfsearch/calculateMatlabTform.py'
+remoteRegCalibration = '/ssd/data0/SIMrecon/otfsearch/calculateMatlabTform.py'
 # directory with all the OTFs
-OTFdir = '/mnt/data0/SIMrecon/OTFs'
+OTFdir = '/ssd/data0/SIMrecon/OTFs'
 # directory with default OTFs
 # (this could probably be eliminated in favor of filename conventions)
-defaultOTFdir = '/mnt/data0/SIMrecon/OTFs/defaultOTFs'
+defaultOTFdir = '/ssd/data0/SIMrecon/OTFs/defaultOTFs'
 # string that determines formatting of the OTF filename
 OTFtemplate = 'wavelength_date_oil_medium_angle_beadnum'
 # delimiter for parsing OTFtemplate
@@ -35,7 +35,7 @@ OTFextension = '.otf'
 # app to generate OTF
 makeOTFapp = '/Users/talley/Dropbox/Documents/Python/otfsearch/makeotf'
 # directory with config files for CUDA-SIMrecon reconstruction
-SIconfigDir = '/mnt/data0/SIMrecon/SIconfig'
+SIconfigDir = '/ssd/data0/SIMrecon/SIconfig'
 # path to CUDA-SIMrecon reconstruction app
 reconApp = '/usr/local/bin/sir'
 
@@ -72,9 +72,9 @@ MatlabRegScript = 'omxreg'
 # default reference channel for registration
 refChannel = 528
 # default matlab regisration file to use
-regFile = '/mnt/data0/regfiles/OMXreg_160616_waves435-528-608-683_grid.mat'
+regFile = '/ssd/data0/regfiles/OMXreg_160616_waves435-528-608-683_grid.mat'
 # directory containing registration files (and where they will be saved to by default)
-regFileDir = '/mnt/data0/regfiles/'
+regFileDir = '/ssd/data0/regfiles/'
 
 # name of matlab registration calibration function (must be on MATLAB path)
 MatlabTformCalc = 'omxregcal'
