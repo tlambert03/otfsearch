@@ -9,7 +9,7 @@ from ttk import Notebook, Style
 import sys
 import config as C
 import os
-from __init__ import isRawSIMfile, pseudoWF
+from __init__ import isRawSIMfile, isAlreadyProcessed, pseudoWF
 import threading
 from functools import partial
 from ast import literal_eval
@@ -21,6 +21,7 @@ except ImportError as e:
 	print 'paramiko not installed'
 	print 'Please install paramiko by typing "pip install paramiko" in terminal'
 	sys.exit()
+
 try:
 	import Mrc
 except ImportError as e:
@@ -674,7 +675,10 @@ def dobatch(mode):
 		for file in F:
 			fullpath = os.path.join(R, file)
 			if isRawSIMfile(fullpath):
-				batchlist.append(fullpath)
+				if skipalreadyprocessed.get() and isAlreadyProcessed(fullpath):
+					pass
+				else:
+					batchlist.append(fullpath)
 
 	def callback(mode):
 
@@ -1130,6 +1134,8 @@ Tk.Checkbutton(settingsFrame, variable=optOut, text='Opt out of reconstruction s
 batchDir = Tk.StringVar()
 onlyoptimizefirst = Tk.IntVar()
 onlyoptimizefirst.set(0)
+skipalreadyprocessed = Tk.IntVar()
+skipalreadyprocessed.set(1)
 
 Tk.Label(batchFrame, text='Batch apply optimized or single reconstruction to a directory of files.', 
 	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
@@ -1145,12 +1151,16 @@ Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dob
 Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'), 
 	).grid(row=2, column=2, ipady=6, sticky='ew')
 
-Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimized reconstruction on first file (then use OTFs)').grid(
-	row=4, column=1, columnspan=3, sticky='W')
-
-
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(
-	row=5, column=1, columnspan=3, pady=8, sticky='w')
+	row=4, column=1, columnspan=3, pady=8, sticky='w')
+
+Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimized reconstruction on first file (then use OTFs)').grid(
+	row=5, column=1, columnspan=3, sticky='W')
+
+Tk.Checkbutton(batchFrame, variable=skipalreadyprocessed, text='Skip files that have already been reconstructed').grid(
+	row=6, column=1, columnspan=3, sticky='W')
+
+
 
 # HELP TAB
 
@@ -1213,7 +1223,10 @@ root.geometry("%dx%d+%d+%d" % (size + (x, y)))
 root.resizable(0,0)
 
 # grab most recent regfile from server (this may also cause failure if no connection)
-get_recent_regfile()
+try:
+	get_recent_regfile()
+except AttributeError as e:
+	print 'ERROR: Could not retrieve the most recent registration file!'
 
 #START PROGRAM
 root.mainloop()

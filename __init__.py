@@ -277,7 +277,8 @@ def crop(fileIn, cropsize, fileOut=None):
 def isRawSIMfile(fname):
 	if os.path.splitext(fname)[1] != ".dv":
 		return 0
-	for q in ['SIR','PROC']:
+	#exclude known processed files
+	for q in ['_SIR','_PROC','_WF']:
 		if q in os.path.basename(fname): return 0
 	header = Mrc.open(fname).hdr
 	numWaves = header.NumWaves
@@ -287,6 +288,36 @@ def isRawSIMfile(fname):
 	if numplanes%15:
 		return 0
 	return 1
+
+# this is a more stringent check for raw SIM files... but will fail
+# if the log file doesn't exist
+def logIsTypeSI(file):
+	'''For a given file, look for a .log file with the same name
+	if it exists, and the experiment type is "SI", then return 1
+	'''
+	logfile=os.path.splitext(file)[0] + '.log'
+	if not os.path.exists(logfile):
+		return 0
+	for line in open(logfile, 'r'):
+		if 'type:' in line:
+			if line.split()[1]=='SI':
+				return 1
+			else:
+				return 0
+			break
+		else:
+			continue 
+
+
+def isAlreadyProcessed(file):
+	'''simple check to see if a _PROC or _SIR file already exists for a given file
+	'''
+	if os.path.exists(file.strip().replace('.dv','_PROC.dv')):
+		return 1
+	elif os.path.exists(file.strip().replace('.dv','_SIR.dv')):
+		return 1
+	else:
+		return 0
 
 def query_yes_no(question):
 	"""Ask a yes/no question via raw_input() and return their answer.
