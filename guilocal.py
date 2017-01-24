@@ -9,7 +9,7 @@ from ttk import Notebook, Style
 import sys
 import config as C
 import os
-from __init__ import isRawSIMfile, isAlreadyProcessed, isaReconstruction, pseudoWF
+from otfsearch import isRawSIMfile, isAlreadyProcessed, isaReconstruction, pseudoWF
 import threading
 from functools import partial
 from ast import literal_eval

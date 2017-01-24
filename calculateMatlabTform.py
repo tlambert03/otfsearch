@@ -1,4 +1,4 @@
-from __init__ import goodChannel
+from otfsearch import goodChannel
 import config 
 import subprocess
 

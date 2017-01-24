@@ -9,7 +9,7 @@ from ttk import Notebook, Style
 import sys
 import config as C
 import os
-from __init__ import isRawSIMfile, isAlreadyProcessed, isaReconstruction, pseudoWF
+from otfsearch import isRawSIMfile, isAlreadyProcessed, isaReconstruction, pseudoWF
 import threading
 from functools import partial
 from ast import literal_eval
@@ -870,6 +870,7 @@ def get_recent_regfile():
 	ssh = make_connection()
 	sftp = ssh.open_sftp()
 	reglist = sorted([item for item in sftp.listdir(C.regFileDir) if item.endswith('.mat') and "refs" not in item])
+	reglist = [item for item in reglist if len(item.split('waves')[1].split('_')[0].split('-'))>3]
 	RegFile.set(os.path.join(C.regFileDir, reglist[-1]))
 
 #######################################################################################

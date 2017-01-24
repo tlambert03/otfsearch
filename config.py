@@ -3,7 +3,7 @@
 # CONNECTION TO REMOTE SERVER
 # this program assumes the use of private keys for authentication
 # https://help.github.com/articles/generating-an-ssh-key/
-server = 'cb-cbmf-latwork.med.harvard.edu'
+server = 'cbmf-latwork'
 username = 'cbmf'
 
 priismpath = '/usr/local/priism'
@@ -40,7 +40,7 @@ SIconfigDir = '/ssd/data0/SIMrecon/SIconfig'
 reconApp = '/usr/local/bin/sir'
 
 # 
-otfSigRange=[18000,31500]
+otfSigRange=[16000,31500]
 
 # OPTMIIZED RECONSTRUCTION PARAMETERS
 # all files will be cropped to this size before reconstruction

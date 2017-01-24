@@ -2,7 +2,7 @@ import Mrc
 import os
 import config
 import subprocess
-from __init__ import callPriism
+from otfsearch import callPriism
 
 
 def splitAngles(infile, outdir=None):
@@ -48,11 +48,12 @@ def batchmakeotf(directory):
 	# batch make otf
 	for angdir in list(set(angleDirs)):
 		for F in os.listdir(angdir):
-			if ('a1' in F) or ('a2' in F) or ('a3' in F):
+			if (('a1' in F) or ('a2' in F) or ('a3' in F)) and not ('.otf' in F):
 				outfile = F.replace('dv','otf')
 
 				maxint = Mrc.open(os.path.join(angdir,F)).hdr.mmm1[1]
 				if maxint < config.otfSigRange[1] and maxint > config.otfSigRange[0]:
+					print "processing %s with maxint = %d" % (os.path.join(angdir,F),maxint)
 					makeotf(os.path.join(angdir,F),os.path.join(angdir,outfile))
 				else:
 					print "skipping %s with maxint = %d" % (os.path.join(angdir,F),maxint)
@@ -131,7 +132,7 @@ def makeotf(infile, outfile=None, nimm=1.515, na=1.42, beaddiam=0.11, angle=None
 		com.extend([str(n) for n in leavekz])
 	if background:
 		com.extend(['-background', str(background)])
-	print " ".join(com)
+	#print " ".join(com)
 	subprocess.call(com)
 
 	return outfile
@@ -142,7 +143,7 @@ if __name__ == '__main__':
 	import argparse
 
 	parser = argparse.ArgumentParser(description='Apply channel registration to multi-channel file', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument('inputFile', help='The file to process', type=file)
+	parser.add_argument('inputFile', help='The file to process')
 	parser.add_argument('-o','--outputFile', help='Optional name of output file to process', default=None, metavar='FILE')
 	parser.add_argument('-a','--angle', help='Angle of illumination', default=None, type=int)
 	parser.add_argument('-i','--nimm', help='Refractive index of imersion oil', default=1.515, type=float)
@@ -164,6 +165,9 @@ if __name__ == '__main__':
 	else:
 		fo=(3,20)
 
-	makeotf(args['inputFile'].name, outfile=args['outputFile'], nimm=args['nimm'], na=args['na'], beaddiam=args['beaddiam'], 
-		angle=args['angle'], background=args['background'], fixorigin=fo, leavekz=lkz)
+	if os.path.isdir(args['inputFile'])	:
+		batchmakeotf(args['inputFile'])
+	else:
+		makeotf(args['inputFile'], outfile=args['outputFile'], nimm=args['nimm'], na=args['na'], beaddiam=args['beaddiam'], 
+			angle=args['angle'], background=args['background'], fixorigin=fo, leavekz=lkz)
 

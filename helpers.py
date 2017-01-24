@@ -154,27 +154,6 @@ def getIllumCoords(pixelSize, imwidth, spacing, angle, extend=1):
 	artCoord2=(x0-xOff,y0-yOff)
 	return artCoord1,artCoord2
 
-#example usage
-import Mrc
-import numpy as np
-import matplotlib.pyplot as plt
-
-indat=Mrc.bindFile('/Users/talley/Dropbox/OMX/data/SIRreconTEST/testA_1516_PROC.dv')
-xPixelSize=indat.Mrc.hdr.d[0]
-imwidth = indat.shape[-1]
-spacing=0.414635 # from the log file
-angle = -0.80385 # the angle in radians of the illumination
-coords = getIllumCoords(xPixelSize, imwidth, spacing, angle)
-
-bp = indat[bestplane(indat)]
-F,amp = getFFT(bp, shifted=True, log=True)
-Fstack,ampstack = getFFT(indat, shifted=True, log=True)
-#line = linecut(amp,p1=coords[0],p2=coords[1], width=3, show=True)
-
-[x,y]=[int(i) for i in coords[0]]
-cropsize=70
-cropped=amp[x-cropsize:x+cropsize,y-cropsize:y+cropsize]
-showPlane(cropped)
 
 def croparound(arr, coord=None, cropsize=15):
 	if not coord:
@@ -189,13 +168,6 @@ def croparound(arr, coord=None, cropsize=15):
 		cropped=arr[:,:, x-cropsize:x+cropsize+1,y-cropsize:y+cropsize+1]
 	return cropped
 
-m = croparound(ampstack[19],coords[1],15)
-from scipy.ndimage import gaussian_filter
-
-sigma = 5 # I have no idea what a reasonable value is here
-smoothed = gaussian_filter(croparound(ampstack[18],coords[1],100), sigma)
-plt.imshow(smoothed)
-plt.show()
 
 
 def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
@@ -245,17 +217,17 @@ def calcartifact(file, spacing=0.414635, angle=-0.80385, cropsize = 15):
 
 
 #MATLAB CODE
-def frc(in1,in2):
-	# take fft
-	ft1 = ft(in1);
-	ft2 = ft(in2);
+# def frc(in1,in2):
+# 	# take fft
+# 	ft1 = ft(in1);
+# 	ft2 = ft(in2);
 
-	# Compute fourier ring correlation curve
-	frc_num = real(radialsum(in1.*conj(in2)));              # Numerator
-	in1 = abs(in1).^2;
-	in2 = abs(in2).^2;
-	frc_denom = sqrt(abs(radialsum(in1).*radialsum(in2)));  # Denominator
-	frc_out = double(frc_num)./double(frc_denom);           # FRC
-	frc_out(isnan(frc_out)) = 0;                            # Remove NaNs
+# 	# Compute fourier ring correlation curve
+# 	frc_num = real(radialsum(in1.*conj(in2)));              # Numerator
+# 	in1 = abs(in1).^2;
+# 	in2 = abs(in2).^2;
+# 	frc_denom = sqrt(abs(radialsum(in1).*radialsum(in2)));  # Denominator
+# 	frc_out = double(frc_num)./double(frc_denom);           # FRC
+# 	frc_out(isnan(frc_out)) = 0;                            # Remove NaNs
 
 

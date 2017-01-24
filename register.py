@@ -1,4 +1,4 @@
-from __init__ import matlabReg, pickRegFile, goodChannel
+from otfsearch import matlabReg, pickRegFile, goodChannel
 import config
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import argparse
 import config
-from __init__ import makeBestReconstruction, goodChannel, cropCheck
+from otfsearch import makeBestReconstruction, goodChannel, cropCheck
 
 def otfAssignment(string):
 	if "=" in string and len(string.split('='))==2:

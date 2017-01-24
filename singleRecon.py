@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import config
-from __init__ import reconstructMulti, goodChannel, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprj
+from otfsearch import reconstructMulti, goodChannel, croptime, isRawSIMfile, query_yes_no, matlabReg, pickRegFile, maxprj
 import Mrc
 
 def otfAssignment(string):
