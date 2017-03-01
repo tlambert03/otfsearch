@@ -280,14 +280,18 @@ def isRawSIMfile(fname):
 	#exclude known processed files
 	for q in ['_SIR','_PROC','_WF']:
 		if q in os.path.basename(fname): return 0
-	header = Mrc.open(fname).hdr
-	numWaves = header.NumWaves
-	numTimes = header.NumTimes
-	imSize = header.Num
-	numplanes = imSize[2]/(numTimes*numWaves)
-	if numplanes%15:
+	try:
+		header = Mrc.open(fname).hdr
+		numWaves = header.NumWaves
+		numTimes = header.NumTimes
+		imSize = header.Num
+		numplanes = imSize[2]/(numTimes*numWaves)
+		if numplanes%15:
+			return 0
+		return 1
+	except Exception as e:
+		print "Error reading header in: %s" % fname
 		return 0
-	return 1
 
 # this is a more stringent check for raw SIM files... but will fail
 # if the log file doesn't exist
