@@ -410,6 +410,9 @@ def deactivateWaves(waves):
 
 def getRawFile():
 	filename = tkFileDialog.askopenfilename(filetypes=[('DeltaVision Files', '.dv'), ('MRC Files', '.mrc')], initialdir=lastdir)
+	if ' ' in filename:
+		tkMessageBox.showinfo('Warning: Bad Filename','Spaces are not allowed in file or directory names, please rename the file')
+		return
 	setRawFile(filename)
 
 

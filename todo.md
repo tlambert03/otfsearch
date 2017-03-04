@@ -28,6 +28,6 @@ add ability to subsection Z-divs
 auto background subtraction?
 
 <!-- bugs -->
-
+make it so that you don't have to hit cancel button after server fail
 prevent registration when only a single channel is selected in a multichannel file
 invalid switch for -nimm in makeotf when nimm!=1.515...
