@@ -63,7 +63,7 @@ def cropCheck(string):
 # image file manipulation
 
 def callPriism(command=None):
-	# must figure out way to add this to path 
+	# must figure out way to add this to path
 	if not os.environ.has_key('IVE_BASE') and os.path.exists(config.priismpath):
 		P = os.environ['PATH'].split(":")
 		P.insert(0,os.path.join(config.priismpath,'Darwin64','BIN'))
@@ -91,7 +91,7 @@ def callPriism(command=None):
 			raise EOFError(msg)
 
 def splitchannels(fname, waves=None):
-	reader = Mrc.open(fname) 
+	reader = Mrc.open(fname)
 	imWaves = [i for i in reader.hdr.wave if i != 0]
 	if waves is None: waves = imWaves
 	namesplit = os.path.splitext(fname)
@@ -171,7 +171,7 @@ def pseudoWF(fileIn, nangles=3, nphases=5, extract=None, outFile=None):
 		imgavg = np.mean(imgavg, 1, img.dtype)
 	imgavg = np.squeeze(imgavg)
 	if imgavg.ndim>4:
-		raise ValueError('ERROR: pseudo widefield function cannot accept 5d images!') 
+		raise ValueError('ERROR: pseudo widefield function cannot accept 5d images!')
 	hdr = Mrc.makeHdrArray()
 	Mrc.initHdrArrayFrom(hdr, img.Mrc.hdr)
 	hdr.ImgSequence=1
@@ -230,11 +230,11 @@ def stackmath(fileIn, operator='max', axis='z', outFile=None):
 	proj = np.squeeze(proj)
 
 	if proj.ndim>4:
-		raise ValueError('Mrc.py cannot write 5D .dv images') 
+		raise ValueError('Mrc.py cannot write 5D .dv images')
 	hdr = Mrc.makeHdrArray()
 	Mrc.initHdrArrayFrom(hdr, img.Mrc.hdr)
 	hdr.ImgSequence=1
-	
+
 	if outFile is None:
 		namesplit = os.path.splitext(fileIn)
 		outFile=namesplit[0]+"_"+operator.upper()+namesplit[1]
@@ -262,7 +262,7 @@ def crop(fileIn, cropsize, fileOut=None):
 	cropendX=cropstartX+cropsize-1
 	cropstartY=(imSize[1]/2)-(cropsize/2);
 	cropendY=cropstartY+cropsize-1
-	
+
 	if fileOut is None:
 		namesplit = os.path.splitext(fileIn)
 		fileOut=namesplit[0]+"_cropped"+namesplit[1]
@@ -272,7 +272,7 @@ def crop(fileIn, cropsize, fileOut=None):
 	return fileOut
 
 
-# helpers 
+# helpers
 
 def isRawSIMfile(fname):
 	if os.path.splitext(fname)[1] != ".dv":
@@ -310,7 +310,7 @@ def logIsTypeSI(file):
 				return 0
 			break
 		else:
-			continue 
+			continue
 
 def isAlreadyProcessed(filename):
 	'''simple check to see if a _PROC or _SIR file already exists for a given file
@@ -350,7 +350,7 @@ def query_yes_no(question):
 
 
 # reconstruction
-def reconstruct(inFile, otfFile, outFile=None, configFile=None, 
+def reconstruct(inFile, otfFile, outFile=None, configFile=None,
 				wiener=None, background=None, configDir=None):
 	wave = Mrc.open(inFile).hdr.wave[0]
 
@@ -373,7 +373,7 @@ def reconstruct(inFile, otfFile, outFile=None, configFile=None,
 	if background:
 		commandArray.extend(['--background',str(background)])
 
-	
+
 	process = subprocess.Popen(commandArray, stdout=subprocess.PIPE)
 	output = process.communicate()[0]
 	if 'CUFFT failed to allocate GPU or CPU memory' in output:
@@ -422,7 +422,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 		procFile=namesplit[0]+"_PROC"+namesplit[1]
 		filesToMerge.append(procFile)
 		try:
-			reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, background=background, configDir=configDir), 
+			reconLogs.append({ 	'log'  : reconstruct(file, otf, procFile, wiener=wiener, background=background, configDir=configDir),
 								'wave' : wave,
 								'otf'  : otf,
 								'file' : file,
@@ -431,15 +431,15 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 		except Exception as e:
 			print "Cannot reconstruct file %s due to error %s" % (inFile,e)
 			#cleanup files
-			for f in splitfiles: 
-				if not f == inFile: os.remove(f) 
+			for f in splitfiles:
+				if not f == inFile: os.remove(f)
 			for f in filesToMerge: os.remove(f)
 			return 0
 
-		
+
 
 	if writeLog:
-		if not logFile: 
+		if not logFile:
 			namesplit=os.path.splitext(outFile)
 			logFile=namesplit[0]+"_LOG.txt"
 		with open(logFile, 'w') as the_file:
@@ -452,7 +452,10 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 				the_file.write("FILE: %s \n" % D['file'])
 				the_file.write("OTF: %s \n" % D['otf'])
 				indat = Mrc.bindFile(D['procFile'])
-				imRIH = getRIH(indat)
+				try:
+					imRIH = getRIH(indat) # workaround when RIH fails
+				except:
+					imRIH = 0.1
 				the_file.write("RECONSTRUCTION SCORE (MMR): %0.2f \n" % imRIH)
 				the_file.write("\n")
 				the_file.write("RECONSTRUCTION LOG: \n")
@@ -472,7 +475,7 @@ def reconstructMulti(inFile, OTFdict={}, reconWaves=None, outFile=None, wiener=N
 
 
 
-# SCORING FUNCTIONS 
+# SCORING FUNCTIONS
 
 def calcPosNegRatio(pc, bg, histMin, histMax, hist, nPixels):
 	#find hist step (bin size)
@@ -635,7 +638,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 	if os.path.exists(tmpDir):
 		shutil.rmtree(tmpDir)
 	os.makedirs(tmpDir)
-	
+
 	# create symlink of original file in tmp
 	fname=os.path.join(tmpDir,os.path.basename(inputFile))
 	os.symlink(inputFile, fname)
@@ -667,7 +670,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		elif isinstance(reconWaves,int):
 			reconWaves = [reconWaves]
 		else:
-			if verbose: 
+			if verbose:
 				print "Channel input format not recognized: %s" % reconWaves
 				print "Channels must be integer or list of integers.  Quitting..."
 				sys.exit(1)
@@ -688,9 +691,9 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 	# reconstruct each channel file by all matching OTFs
 	for file in splitfiles:
 		namesplit = os.path.splitext(file)
-		
+
 		imChannel = Mrc.open(file).hdr.wave[0]
-		
+
 		if verbose:
 			print "%s - Channel: %s" % (os.path.basename(file), imChannel)
 
@@ -712,7 +715,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 		fileDict={  "input" : inputFile,
 					"input-ctime" : datetime.fromtimestamp(os.path.getctime(inputFile)),
 					"TIV" : TIV,
-					"channelDecay" : channelDecay,						
+					"channelDecay" : channelDecay,
 					"angleDiffs" : angleDiffs,
 					"imChannel" : imChannel
 		}
@@ -730,9 +733,9 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 			# this is where we parse the reconstruction log and mine for import data
 			procFile=namesplit[0] + "_" + otf['code'] + "_PROC" + namesplit[1]
 			reconLog = reconstruct(file, otf['path'], procFile)
-			combinedModamps = [float(line.split('amp=')[1].split(',')[0]) for line 
+			combinedModamps = [float(line.split('amp=')[1].split(',')[0]) for line
 							 in reconLog.split('\n') if 'Combined modamp' in line]
-			correlationCoeffs = [float(line.split(": ")[1]) for line in reconLog.split('\n') 
+			correlationCoeffs = [float(line.split(": ")[1]) for line in reconLog.split('\n')
 								if 'Correlation coefficient' in line]
 			spacings = [float(line.split(" ")[0]) for line in reconLog.split('spacing=')[1:]]
 			angles = [float(line.split(",")[0]) for line in reconLog.split('Optimum k0 angle=')[1:]]
@@ -740,9 +743,15 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 			fitDeltas = [float(line.split(" ")[0]) for line in reconLog.split('best fit for k0 is ')[1:]]
 			warnings = [line for line in reconLog.split('\n') if 'WARNING' in line]
 			indat = Mrc.bindFile(procFile)
-			imRIH = getRIH(indat)
-			imSAM = getSAM(indat)
-			
+			try:
+				imRIH = getRIH(indat) # workaround when RIH fails
+			except:
+				imRIH = 0.1
+			try:
+				imSAM = getSAM(indat)
+			except:
+				imSAM = 0.1
+
 			scoreDict={ "OTFcode" : otf['code'],
 						"OTFoil"  : otf['oil'],
 						"OTFangle": otf['angle'][1:],
@@ -774,7 +783,7 @@ def scoreOTFs(inputFile, cropsize=256, OTFdir=config.OTFdir, reconWaves=None, fo
 			scoreDict.update(fileDict)
 			allScores.append(scoreDict)
 			if verbose: print "%s: %0.3f %.2f" % (otf['code'], np.average(combinedModamps[0:6:2]), imRIH)
-		if verbose: print ""			
+		if verbose: print ""
 
 	if cleanup: shutil.rmtree(tmpDir)
 	return allScores
@@ -787,7 +796,7 @@ def getBestOTFs(scoreDict,channels=None, report=10, verbose=True):
 	for c in channels:
 		sortedList = sorted([s for s in scoreDict if s['imChannel']==c], key=lambda x: x['score'], reverse=True)
 		results[str(c)] = sortedList[0]['OTFpath']
-		if verbose: 
+		if verbose:
 			print "Channel %s:" % c
 			q=[(s['OTFcode'], s['score'], s['RIH'], s['avgmodamp2']) for s in sortedList][:report]
 			print "{:<23} {:<6} {:<5} {:<7}".format('OTFcode','Score','RIH','modamp')
@@ -802,7 +811,7 @@ def matlabReg(fname,regFile,refChannel,doMax,form='dv'):
 	matlabString = "%s('%s','%s', %d,'DoMax', %s, 'format', '%s');exit" % (config.MatlabRegScript,fname,regFile,refChannel,maxbool,form)
 	subprocess.call(['matlab', '-nosplash', '-nodesktop', '-nodisplay', '-r', matlabString])
 	registeredFile = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"."+form
-	if doMax: 
+	if doMax:
 		maxProj = os.path.splitext(fname)[0]+"-REGto"+str(refChannel)+"-MAX."+form
 	else:
 		maxProj = None
@@ -811,7 +820,7 @@ def matlabReg(fname,regFile,refChannel,doMax,form='dv'):
 
 def pickRegFile(fname,directory,filestring=None):
 	filelist = sorted(os.listdir(directory), key=lambda x: x.split("_")[1], reverse=True)
-	reader = Mrc.open(fname) 
+	reader = Mrc.open(fname)
 	imWaves = [i for i in reader.hdr.wave if i != 0]
 	for f in filelist:
 		fileWaves = [int(w) for w in f.split('waves')[1].split('_')[0].split('-')]
@@ -823,14 +832,14 @@ def pickRegFile(fname,directory,filestring=None):
 				return f
 
 	# should add another bit to check whether the .mat file has that channel as
-	# a reference channel... 
+	# a reference channel...
 	# if the regile has "refs" in the filename, it means that not all wavelengths
 	# are referenced to all other wavelengths (otherwise, that can be assumed)
 	return 0
 
 
 def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge=config.maxAge, wiener=None,
-							maxNum=config.maxNum, writeCSV=config.writeCSV, appendtomaster=True, OTFdir=config.OTFdir, 
+							maxNum=config.maxNum, writeCSV=config.writeCSV, appendtomaster=True, OTFdir=config.OTFdir,
 							reconWaves=None, forceChannels=None, regFile=None, regdir=config.regFileDir,
 							refChannel=config.refChannel, doMax=None, doReg=None, cleanup=True, verbose=True):
 	# check if it appears to be a raw SIM file
@@ -838,8 +847,8 @@ def makeBestReconstruction(fname, cropsize=256, oilMin=1510, oilMax=1524, maxAge
 		if not query_yes_no("File doesn't appear to be a raw SIM file... continue?"):
 			sys.exit("Quitting...")
 
-	allScores = scoreOTFs(fname, cropsize=cropsize, OTFdir=config.OTFdir, reconWaves=reconWaves, 
-							forceChannels=forceChannels, oilMin=oilMin, oilMax=oilMax, maxAge=maxAge, 
+	allScores = scoreOTFs(fname, cropsize=cropsize, OTFdir=config.OTFdir, reconWaves=reconWaves,
+							forceChannels=forceChannels, oilMin=oilMin, oilMax=oilMax, maxAge=maxAge,
 							maxNum=maxNum, verbose=verbose, cleanup=cleanup)
 	bestOTFs  = getBestOTFs(allScores, verbose=verbose)
 
