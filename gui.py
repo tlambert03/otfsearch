@@ -107,7 +107,7 @@ def upload(file, remotepath, mode):
 		Server['busy'] = True
 		thr.start()
 		remotefile = os.path.join(remotepath, os.path.basename(file))
-		# then hand control to upload_watcher loop and 
+		# then hand control to upload_watcher loop and
 		# wait for the appropriate server response
 		root.after(200, upload_watcher, (remotefile, mode))
 	else:
@@ -170,7 +170,7 @@ def sftp_get(filelist):
 		sys.stdout.write("Downloading: %s ... " % f)
 		Server['currentFile'] = os.path.basename(f)
 		# local download path pulled from current rawpath
-		# this could lead to problems if the user changes 
+		# this could lead to problems if the user changes
 		# it in the meantime...
 		localpath = os.path.join(os.path.dirname(rawFilePath.get()), os.path.basename(f))
 		if not overwrite.get():
@@ -207,7 +207,7 @@ def upload_watcher(tup):
 
 	elif Server['status'] == 'uploading':
 		statusTxt.set("Uploading %s: %0.1f of %0.1f MB" %
-			(Server['currentFile'], float(Server['progress'][0]) / 
+			(Server['currentFile'], float(Server['progress'][0]) /
 				1000000, float(Server['progress'][1]) / 1000000))
 		root.after(200, upload_watcher, tup)
 
@@ -238,7 +238,7 @@ def download_watcher(tup):
 
 	elif Server['status'] == 'downloading':
 		statusTxt.set("Downloading %s: %0.1f of %0.1f MB" %
-			(Server['currentFile'], float(Server['progress'][0]) / 
+			(Server['currentFile'], float(Server['progress'][0]) /
 				1000000, float(Server['progress'][1]) / 1000000))
 		root.after(200, download_watcher, tup)
 
@@ -260,15 +260,15 @@ def send_command(remotefile, mode):
 
 	if mode == 'registerCal':
 		command = ['python', C.remoteRegCalibration, remotefile, '--outpath', C.regFileDir]
-		if calibrationIterations.get(): 
+		if calibrationIterations.get():
 			command.extend(['--iter', calibrationIterations.get()])
-		if RegCalRef.get() != 'all': 
+		if RegCalRef.get() != 'all':
 			command.extend(['--refs', RegCalRef.get()])
-	
+
 	elif mode == 'register':
 		command = ['python', C.remoteRegScript, remotefile, '-c', RefChannel.get()]
 		if RegFile.get().strip(): command.extend(['--regfile', RegFile.get()])
-	
+
 	elif mode == 'single':
 		command = ['python', C.remoteSpecificScript, remotefile,
 					'--regfile', RegFile.get(), '-r', RefChannel.get()]
@@ -316,7 +316,7 @@ def send_command(remotefile, mode):
 	statusTxt.set("Sending command to remote server...")
 	# send the command to the server
 	channel.send(" ".join([str(s) for s in command]) + '\n')
-	
+
 	junkresponses = ['[?1h=','[?1h=','[?1l>','[?1l>',
 				'To get started, type one of these: helpwin, helpdesk, or demo.',
 				'For product information, visit www.mathworks.com.',
@@ -336,10 +336,21 @@ def send_command(remotefile, mode):
 				# if there's something waiting in the queue, read it
 				response = channel.recv(2048)
 
-				if response != '': 
+				if response != '':
 					statusTxt.set("Receiving feedback from server ... see text area above for details.")
 					r = [r for r in response.splitlines() if r and r != '']
 					#r = filter(lambda a: a not in junkresponses, r)
+
+					for i in r:
+						if 'Error' in i or 'error' in i:
+							for i in r:
+								print i
+							statusTxt.set("An error occurred!  Processing canceled")
+							Server['status'] = 'canceled'
+							Server['busy'] = False
+							Server['currentFile'] = None
+							textArea.insert(Tk.END, "ERROR!  See log window for details" + "\n")
+							return
 
 					for i in r:
 						if i not in junkresponses:
@@ -359,7 +370,7 @@ def send_command(remotefile, mode):
 								channelOTFPaths[int(k)].set(v)
 								print "Best OTF for %s: %s" %(k,v)
 								statusTxt.set("Best OTFs added to 'Specific OTFs' tab")
-					
+
 					# this will not work if the server doesn't send all of the text in a single receive
 					# increasing loop time might help... but doesn't fix the fundamental problem
 					if 'Files Ready:' in r:
@@ -370,17 +381,17 @@ def send_command(remotefile, mode):
 							i += 1
 						if len(filelist):
 							download(filelist)
-						# this is where this loop ends... 
+						# this is where this loop ends...
 						return
-				
+
 				if response.endswith(':~$ '):
 					if 'OTFs' not in statusTxt.get():
 						statusTxt.set("Server finished command.")
 
-				
+
 				elif response.endswith("File doesn't appear to be a raw SIM file... continue?"):
 					statusTxt.set("Remote server didn't recognize file as raw SIM file and quit")
-				
+
 				else:
 					# response was empty...
 					root.after(500, receive_command_response, ssh)
@@ -458,7 +469,7 @@ def entriesValid(silent=False, mode=None):
 		if not RegFile.get().strip():
 			errors.append(["Registration File Error","Please select a registration file in the registration tab"])
 
-		try: 
+		try:
 			regwaves = os.path.basename(RegFile.get()).split('waves')[1].split('_')[0].split('-')
 			# could potentially try to read the matlab file directly with something like:
 			# import scipy.io
@@ -565,7 +576,7 @@ def getChannelOTF(var):
 	scrollbar.grid(row=0, column=3, sticky='ns')
 
 	lb = Tk.Listbox(top, yscrollcommand=scrollbar.set, height=18, width=28)
-	
+
 	for item in selectedlist:
 		lb.insert(Tk.END, os.path.basename(item))
 	lb.grid(row=0, column=0, columnspan=3)
@@ -600,7 +611,7 @@ def getChannelOTF(var):
 
 	cancelButton = Tk.Button(top, text="Cancel",command=cancelOTF, pady=6, padx=10)
 	cancelButton.grid(row=1, column=1)
-	
+
 	top.update_idletasks()
 	w = top.winfo_screenwidth()
 	h = top.winfo_screenheight()
@@ -738,7 +749,7 @@ def dobatch(mode):
 
 
 def naccheck(entry, var):
-	# function for linking enabled state of entry 
+	# function for linking enabled state of entry
 	# to a checkbox, for example
 	if var.get() == 0:
 		entry.configure(state='disabled')
@@ -770,7 +781,7 @@ class ToolTip:
 		if self._opts['follow_mouse']:
 			self._id4 = self.master.bind("<Motion>", self.motion, '+')
 			self._follow_mouse = 1
-	
+
 	def configure(self, **opts):
 		for key in opts:
 			if self._opts.has_key(key):
@@ -778,24 +789,24 @@ class ToolTip:
 			else:
 				KeyError = 'KeyError: Unknown option: "%s"' %key
 				raise KeyError
-	
+
 	##----these methods handle the callbacks on "<Enter>", "<Leave>" and "<Motion>"---------------##
 	##----events on the parent widget; override them if you want to change the widget's behavior--##
-	
+
 	def enter(self, event=None):
 		self._schedule()
-		
+
 	def leave(self, event=None):
 		self._unschedule()
 		self._hide()
-	
+
 	def motion(self, event=None):
 		if self._tipwindow and self._follow_mouse:
 			x, y = self.coords()
 			self._tipwindow.wm_geometry("+%d+%d" % (x, y))
-	
+
 	##------the methods that do the work:---------------------------------------------------------##
-	
+
 	def _schedule(self):
 		self._unschedule()
 		if self._opts['state'] == 'disabled':
@@ -826,15 +837,15 @@ class ToolTip:
 			x, y = self.coords()
 			tw.wm_geometry("+%d+%d" % (x, y))
 			tw.deiconify()
-	
+
 	def _hide(self):
 		tw = self._tipwindow
 		self._tipwindow = None
 		if tw:
 			tw.destroy()
-				
+
 	##----these methods might be overridden in derived classes:----------------------------------##
-	
+
 	def coords(self):
 		# The tip window must be completely outside the master widget;
 		# otherwise when the mouse enters the tip window we get
@@ -1037,7 +1048,7 @@ channelOTFPaths={}
 channelOTFEntries={}
 channelOTFButtons={}
 
-Tk.Label(singleReconFrame, 
+Tk.Label(singleReconFrame,
 	text="Use this tab to quickly reconstruct the input file with the OTFs and settings specified in this tab",
 	font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=7,
 	sticky='w')
@@ -1153,7 +1164,7 @@ onlyoptimizefirst.set(0)
 skipalreadyprocessed = Tk.IntVar()
 skipalreadyprocessed.set(1)
 
-Tk.Label(batchFrame, text='Batch process a directory of files.', 
+Tk.Label(batchFrame, text='Batch process a directory of files.',
 	font=('Helvetica', 13, 'bold')).grid(row=0, columnspan=5, sticky='w')
 
 Tk.Label(batchFrame, text='Directory:').grid(row=1, sticky='e')
@@ -1162,9 +1173,9 @@ Tk.Entry(batchFrame, textvariable=batchDir).grid(
 Tk.Button(batchFrame, text ="Choose Dir", command = getbatchDir).grid(
 	row=1, column=3, ipady=3, ipadx=10, padx=2, sticky='w')
 
-Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dobatch, 'optimal'), 
+Tk.Button(batchFrame, text="Batch Optimized Reconstruction", command=partial(dobatch, 'optimal'),
 	).grid(row=2, column=1, ipady=6, sticky='ew')
-Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'), 
+Tk.Button(batchFrame, text="Batch Specified Reconstruction", command=partial(dobatch, 'single'),
 	).grid(row=2, column=2, ipady=6, sticky='ew')
 
 Tk.Label(batchFrame, text='(Settings on the respective tabs will be used for batch reconstructions)').grid(
@@ -1176,7 +1187,7 @@ Tk.Checkbutton(batchFrame, variable=onlyoptimizefirst, text='Only perform optimi
 Tk.Checkbutton(batchFrame, variable=skipalreadyprocessed, text='Skip files that have already been reconstructed').grid(
 	row=6, column=1, columnspan=3, sticky='W')
 
-Tk.Button(batchFrame, text="Batch register processed files", command=partial(dobatch, 'register'), 
+Tk.Button(batchFrame, text="Batch register processed files", command=partial(dobatch, 'register'),
 	).grid(row=7, column=1, ipady=6, sticky='ew')
 
 
