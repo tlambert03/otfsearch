@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "otfsearch"
+version = "1.0.0"
+description = "Local, single-process SIM reconstruction + OTF search GUI (cudasirecon)"
+readme = "readme.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
+keywords = ["SIM", "microscopy", "reconstruction", "cudasirecon", "OTF"]
+
+# Pure-pip runtime dependencies.  NOTE: the reconstruction engine is the
+# `cudasirecon` command-line executable, which comes from conda (it needs an
+# NVIDIA GPU) and is intentionally NOT a pip dependency, so that
+# `pip install otfsearch` works for the pure-python parts.  Install the
+# MRC-capable build with:
+#     conda install -c talley -c conda-forge cudasirecon
+#
+# numpy is pinned < 2 because the `mrc` package still calls the removed
+# `ndarray.newbyteorder` when reading the engine's .dv output (to be fixed in mrc).
+dependencies = [
+    "numpy<2",
+    "scipy",
+    "scikit-image",
+    "pandas",
+    "mrc",
+]
+
+[project.optional-dependencies]
+# channel registration (replaces the old MATLAB pipeline)
+reg = ["fiducialreg"]
+test = ["pytest"]
+
+[project.scripts]
+otfsearch = "otfsearch.gui.app:main"
+otfsearch-cli = "otfsearch.cli:main"
+
+[project.urls]
+Source = "https://github.com/tlambert03/otfsearch"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/otfsearch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

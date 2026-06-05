@@ -1,5 +1,15 @@
 *.pyc
+__pycache__/
 *.DS_Store
 
 *.sublime-project
 *.sublime-workspace
+
+# Python packaging / tooling
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.uv/

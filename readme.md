@@ -1,39 +1,76 @@
-installation requirements:
-anaconda
-CUDA_SIMrecon
-install priism
-add priism to bashrc
-install matlab
-git matlab repo
+# otfsearch
 
+Local, single-process SIM (structured-illumination microscopy) reconstruction with
+automatic **OTF search**, channel registration, and a Tkinter GUI.
 
+This is a modernized rewrite of the original client/server tool. It now runs as one
+local process — **no SSH, no Priism, no MATLAB, no CLI round-trips**. It operates on
+local `.dv` files and writes outputs next to the input.
 
-#example usage
-import Mrc
-import numpy as np
-import matplotlib.pyplot as plt
+* Reconstruction: the [`cudasirecon`](https://github.com/scopetools/cudasirecon)
+  command-line engine (conda **`talley` channel**, MRC-capable; **needs an NVIDIA
+  GPU**). The package drives it natively on `.dv`/`.otf` files and parses its stdout
+  for the per-angle modulation amplitudes used by the OTF search.
+* Channel registration: [`fiducialreg`](https://github.com/tlambert03/fiducialreg)
+  (replaces the old MATLAB pipeline)
+* `.dv`/MRC I/O: [`mrc`](https://pypi.org/project/mrc/) (replaces Priism + `Mrc.py`)
 
-indat=Mrc.bindFile('/Users/talley/Dropbox/OMX/data/SIRreconTEST/testA_1516_PROC.dv')
-xPixelSize=indat.Mrc.hdr.d[0]
-imwidth = indat.shape[-1]
-spacing=0.414635 # from the log file
-angle = -0.80385 # the angle in radians of the illumination
-coords = getIllumCoords(xPixelSize, imwidth, spacing, angle)
+## Install
 
-bp = indat[bestplane(indat)]
-F,amp = getFFT(bp, shifted=True, log=True)
-Fstack,ampstack = getFFT(indat, shifted=True, log=True)
-#line = linecut(amp,p1=coords[0],p2=coords[1], width=3, show=True)
+The GPU engine comes from conda; everything else is pip:
 
-[x,y]=[int(i) for i in coords[0]]
-cropsize=70
-cropped=amp[x-cropsize:x+cropsize,y-cropsize:y+cropsize]
-showPlane(cropped)
+```bash
+conda create -n otfsearch -c talley -c conda-forge python=3.10 cudasirecon
+conda activate otfsearch
+pip install -e .          # this package (pins numpy<2)
+pip install fiducialreg   # for channel registration
+```
 
-m = croparound(ampstack[19],coords[1],15)
-from scipy.ndimage import gaussian_filter
+> Requires an NVIDIA GPU + matching CUDA runtime. There is no CPU reconstruction
+> fallback; the GUI launches without the engine but reconstruction reports a clear
+> error until the `cudasirecon` executable is on `PATH`.
+>
+> Use the **MRC-capable** `cudasirecon` build from the `talley` channel — it reads
+> the facility's MRC `.otf` library directly. NumPy is pinned `< 2` for now because
+> the `mrc` reader still calls the removed `ndarray.newbyteorder`.
 
-sigma = 5 # I have no idea what a reasonable value is here
-smoothed = gaussian_filter(croparound(ampstack[18],coords[1],100), sigma)
-plt.imshow(smoothed)
-plt.show()
+## Configure
+
+Edit **`src/otfsearch/settings.py`** — the single place for user values:
+
+1. `OTF_DIR` / `REGFILE_DIR` — where the OTF and registration-file libraries live
+2. `OPTICS` — per-wavelength line spacing + pattern angles (add a line here for a
+   new emission channel)
+3. global reconstruction defaults (NA, immersion RI, Wiener, oil-RI search range …)
+
+Pixel sizes and channel/timepoint counts are read automatically from each `.dv`.
+
+## Use
+
+GUI:
+
+```bash
+otfsearch
+```
+
+CLI:
+
+```bash
+otfsearch-cli optimal raw.dv --otf-dir /OTFs            # OTF search + reconstruct
+otfsearch-cli single  raw.dv --otf 528=/OTFs/528.otf    # reconstruct with given OTF
+otfsearch-cli register file_PROC.dv --regfile reg.json  # apply channel registration
+otfsearch-cli calibrate beads.dv --out-dir /regfiles    # build a registration file
+```
+
+## Develop / test
+
+The pure-python parts (settings, OTF matching, params, scoring math) are unit-tested
+without a GPU:
+
+```bash
+pip install pytest
+pytest tests/             # GPU/mrc-dependent tests skip automatically
+```
+
+Reconstruction end-to-end can be verified against the cudasirecon test data
+(`raw.dv`, `psf.dv`, `otf.dv`).
