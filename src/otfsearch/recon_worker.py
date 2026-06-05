@@ -38,6 +38,7 @@ _CONFIG_KEYS = {
     "ndirs", "nphases", "na", "nimm", "ls", "k0angles", "wiener", "background",
     "otfRA", "dampenOrder0", "fastSI", "zoomfact", "zzoom", "nordersout",
     "explodefact", "gammaApo", "nosuppress", "nokz0", "equalizez", "equalizet",
+    "otfcutoff",
 }
 
 

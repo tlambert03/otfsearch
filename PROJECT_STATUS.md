@@ -64,6 +64,25 @@ on read, but real microscope raw `.dv` is **uint16** (15 significant bits) and
 cudasirecon reads it straight into a `CImg<float>` buffer. The test data is all
 float32, so this was never exercised. See §4 roadmap.
 
+> **UPDATE 2026-06-05 — two `dvfile.h` bugs found & fixed; engine now usable on real data.**
+> 1. **uint16 read/write conversion** added (B1) — validated corr 1.00000 vs float.
+> 2. **Extended-header (`inbsym`) bug (the big one).** Real `.otf`/`.dv` carry large
+>    extended headers (608.otf `inbsym=156672`, 528.otf `3072`, il2_001.dv `81920`),
+>    but `DVFile`'s constructor left the file pointer at offset 1024 (after the main
+>    header only). The engine loads the **OTF via bare `IMRdSec`** (sequential, no
+>    positioning), so it read the ext-header region as OTF data → 608 OTF ≈ zeros →
+>    `findk0()=(0,0)` → **all-NaN ch608**; 528 (small inbsym) read shifted → degraded
+>    "sharper" recon (corr 0.66). The raw path was immune (it uses `IMPosnZWT`, which
+>    adds `1024+inbsym`); TIFF mode and IVE/1.0.2 immune too. **This is why the
+>    "version-parity" gap looked like a kernel regression but was an I/O bug — no git
+>    bisect of the kernel was warranted.** Fix: `_dataOffset()/_seekToData()` (skip
+>    `inbsym`) called from the read ctor, `open()`, and `putHeader()`. Probe confirms
+>    sequential OTF read == positioned read (max abs diff 0); ch608 NaN gone.
+> **Residual:** after the fix, newmrc(1.2.0) vs talley(1.0.2)/server = **0.92 ch528 /
+> 0.78 ch608** — genuine 1.0.2→1.2.0 kernel evolution (the "crisper" look). Open A/B/C
+> engine decision: A ship newmrc-1.3, B port the no-IVE + fixes onto v1.0.2 for exact
+> production parity, C characterize/accept the change. Needs user call.
+
 ### What `newmrc`/`dvfile.h` actually does
 It deletes the proprietary **IVE/Priism** dependency (precompiled `libimlib`/`libive`,
 non-redistributable → the reason conda-forge cudasirecon is TIFF-only and the `talley`

@@ -62,6 +62,11 @@ FAST_SI = False
 
 WIENER = 0.001       # default Wiener filter constant
 BACKGROUND = 90      # default camera background to subtract
+# Band-overlap cutoff used in makeoverlaps() for k0/modamp fitting.  cudasirecon's
+# own default is 0.006, but the long-running production engine (1.0.2) used 0.008;
+# we pin 0.008 here so reconstructions track that engine (notably for low-SNR
+# channels).  See PROJECT_STATUS.md "engine version" notes.
+OTFCUTOFF = 0.008
 
 # ── OTF-search knobs (all overridable from the GUI "Optimized" tab) ──
 CROPSIZE = 256       # central crop (px) used while screening OTFs (power of 2)

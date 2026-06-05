@@ -25,6 +25,7 @@ def recon_params_for_wave(
     zoomfact: float | None = None,
     cropsize: int = 0,
     zres_psf: float | None = None,
+    otfcutoff: float | None = None,
     **overrides,
 ) -> dict:
     """Return reconstruction kwargs for one channel.
@@ -58,6 +59,7 @@ def recon_params_for_wave(
         "otfRA": settings.OTF_RA,
         "dampenOrder0": settings.DAMPEN_ORDER0,
         "fastSI": settings.FAST_SI,
+        "otfcutoff": pick(otfcutoff, "otfcutoff", settings.OTFCUTOFF),
         "zoomfact": settings.ZOOMFACT if zoomfact is None else zoomfact,
         "xyres": xyres,
         "zres": zres,
