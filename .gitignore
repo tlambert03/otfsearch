@@ -13,3 +13,7 @@ dist/
 .ruff_cache/
 .venv/
 .uv/
+
+# pixi (the lockfile IS committed; the env dir and detritus are not)
+.pixi/
+pixi_install.log

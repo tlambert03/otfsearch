@@ -46,3 +46,40 @@ packages = ["src/otfsearch"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# pixi: reproducible, one-command environment (https://pixi.sh)
+#   pixi run otfsearch     # launch the GUI
+#   pixi run cli ...       # the command-line interface
+#   pixi run test          # run the unit tests
+# The cudasirecon reconstruction engine (GPU) is pulled from the `talley` conda
+# channel; everything else resolves from conda-forge + PyPI.  Requires an NVIDIA
+# GPU + driver supporting CUDA 12.
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.pixi.workspace]
+channels = ["talley", "conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.10,<3.13"
+cudasirecon = ">=1.3.0"   # MRC-capable, IVE-free engine (talley channel)
+numpy = "<2"              # mrc still calls the removed ndarray.newbyteorder
+scipy = "*"
+scikit-image = "*"
+pandas = "*"
+tk = "*"                  # tkinter GUI
+pytest = "*"              # for `pixi run test`
+
+[tool.pixi.pypi-dependencies]
+# the otfsearch package itself, installed editable from this repo
+otfsearch = { path = ".", editable = true }
+mrc = "*"
+# channel registration (not on PyPI -> install from the source repo)
+fiducialreg = { git = "https://github.com/tlambert03/fiducialreg.git" }
+
+[tool.pixi.tasks]
+otfsearch = "otfsearch"
+cli = "otfsearch-cli"
+test = "pytest"
+# quick environment sanity check (no GUI window)
+check = "python -c \"import otfsearch, mrc, scipy, skimage, pandas; import shutil; print('otfsearch OK; cudasirecon on PATH:', bool(shutil.which('cudasirecon')))\""

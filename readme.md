@@ -15,24 +15,54 @@ local `.dv` files and writes outputs next to the input.
   (replaces the old MATLAB pipeline)
 * `.dv`/MRC I/O: [`mrc`](https://pypi.org/project/mrc/) (replaces Priism + `Mrc.py`)
 
-## Install
+## Quick start (pixi — recommended)
 
-The GPU engine comes from conda; everything else is pip:
+[pixi](https://pixi.sh) gives you the whole thing — the GPU engine, the GUI, and every
+dependency — in one reproducible, project-local environment. No manual conda/pip steps,
+nothing installed globally.
+
+1. **Install pixi** (once):
+   - Windows (PowerShell): `iwr -useb https://pixi.sh/install.ps1 | iex`
+   - Linux / macOS: `curl -fsSL https://pixi.sh/install.sh | bash`
+2. **Clone and run:**
+   ```bash
+   git clone https://github.com/tlambert03/otfsearch
+   cd otfsearch
+   pixi run otfsearch      # first run resolves the env, then launches the GUI
+   ```
+
+That's it. pixi reads `[tool.pixi.*]` in `pyproject.toml`, pulls the MRC-capable
+`cudasirecon` engine from the **`talley` channel**, and installs everything else from
+conda-forge + PyPI into `.pixi/` (gitignored). The exact versions are locked in
+`pixi.lock`, so every machine gets the same environment.
+
+Other tasks:
 
 ```bash
-conda create -n otfsearch -c talley -c conda-forge python=3.10 cudasirecon
-conda activate otfsearch
-pip install -e .          # this package (pins numpy<2)
-pip install fiducialreg   # for channel registration
+pixi run cli ...     # the command-line interface (see "Use" below)
+pixi run test        # run the unit tests
+pixi run check       # quick sanity check: imports + is cudasirecon on PATH?
+pixi shell           # drop into an activated shell in the environment
 ```
 
-> Requires an NVIDIA GPU + matching CUDA runtime. There is no CPU reconstruction
-> fallback; the GUI launches without the engine but reconstruction reports a clear
-> error until the `cudasirecon` executable is on `PATH`.
->
-> Use the **MRC-capable** `cudasirecon` build from the `talley` channel — it reads
-> the facility's MRC `.otf` library directly. NumPy is pinned `< 2` for now because
-> the `mrc` reader still calls the removed `ndarray.newbyteorder`.
+> **Requires an NVIDIA GPU + a driver supporting CUDA 12.** There is no CPU
+> reconstruction fallback; the GUI launches without a GPU, but reconstruction reports a
+> clear error until the `cudasirecon` engine can run.
+
+## Manual install (conda + pip)
+
+If you'd rather manage the environment yourself:
+
+```bash
+conda create -n otfsearch -c talley -c conda-forge python=3.10 cudasirecon "numpy<2"
+conda activate otfsearch
+pip install -e .                                              # this package
+pip install "fiducialreg @ git+https://github.com/tlambert03/fiducialreg"  # registration
+```
+
+> Use the **MRC-capable** `cudasirecon` build from the `talley` channel — it reads the
+> facility's MRC `.otf` library directly. NumPy is pinned `< 2` for now because the
+> `mrc` reader still calls the removed `ndarray.newbyteorder`.
 
 ## Configure
 
@@ -47,13 +77,16 @@ Pixel sizes and channel/timepoint counts are read automatically from each `.dv`.
 
 ## Use
 
+With pixi, prefix the commands with `pixi run` (or run them inside `pixi shell`); with a
+manual install, run them directly in the activated environment.
+
 GUI:
 
 ```bash
-otfsearch
+pixi run otfsearch          # or just `otfsearch`
 ```
 
-CLI:
+CLI (`pixi run cli ...`, or `otfsearch-cli ...`):
 
 ```bash
 otfsearch-cli optimal raw.dv --otf-dir /OTFs            # OTF search + reconstruct
