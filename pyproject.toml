@@ -33,9 +33,12 @@ dependencies = [
 # channel registration (replaces the old MATLAB pipeline)
 reg = ["fiducialreg"]
 test = ["pytest"]
+# PyQt6 GUI (alternative to the stdlib-tkinter default)
+qt = ["pyqt6"]
 
 [project.scripts]
 otfsearch = "otfsearch.gui.app:main"
+otfsearch-qt = "otfsearch.qtgui.app:main"
 otfsearch-cli = "otfsearch.cli:main"
 
 [project.urls]
@@ -74,11 +77,13 @@ pytest = "*"              # for `pixi run test`
 # the otfsearch package itself, installed editable from this repo
 otfsearch = { path = ".", editable = true }
 mrc = "*"
+pyqt6 = "*"
 # channel registration (not on PyPI -> install from the source repo)
 fiducialreg = { git = "https://github.com/tlambert03/fiducialreg.git" }
 
 [tool.pixi.tasks]
-otfsearch = "otfsearch"
+otfsearch = "otfsearch"          # tkinter GUI
+qt = "otfsearch-qt"              # PyQt6 GUI
 cli = "otfsearch-cli"
 test = "pytest"
 # quick environment sanity check (no GUI window)

@@ -24,7 +24,7 @@ cd otfsearch
 pixi run otfsearch
 ```
 
-Tasks: `otfsearch` (GUI), `cli`, `test`, `check`.
+Tasks: `otfsearch` (tkinter GUI), `qt` (PyQt6 GUI), `cli`, `test`, `check`.
 
 ## Manual install (conda + pip)
 
