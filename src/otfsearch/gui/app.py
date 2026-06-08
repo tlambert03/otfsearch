@@ -79,14 +79,15 @@ class App:
         self.calib_refs = tk.StringVar(value="all")
 
         # library locations: seed from persisted user config, then settings.py;
-        # persist any change so they survive across sessions
+        # persist any change so they survive across sessions, and mirror into the
+        # settings module so downstream defaults (e.g. pick_reg_file) honor them.
         _saved = userconfig.load()
         self.otf_dir = tk.StringVar(value=_saved.get("otf_dir", s.OTF_DIR))
         self.regfile_dir = tk.StringVar(value=_saved.get("regfile_dir", s.REGFILE_DIR))
-        self.otf_dir.trace_add(
-            "write", lambda *_: userconfig.set_value("otf_dir", self.otf_dir.get()))
-        self.regfile_dir.trace_add(
-            "write", lambda *_: userconfig.set_value("regfile_dir", self.regfile_dir.get()))
+        self.otf_dir.trace_add("write", self._on_otf_dir)
+        self.regfile_dir.trace_add("write", self._on_regfile_dir)
+        settings.OTF_DIR = self.otf_dir.get()
+        settings.REGFILE_DIR = self.regfile_dir.get()
 
         self.batch_dir = tk.StringVar(value="")
         self.only_optimize_first = tk.IntVar(value=0)
@@ -359,6 +360,14 @@ class App:
         d = filedialog.askdirectory()
         if d:
             self.batch_dir.set(d)
+
+    def _on_otf_dir(self, *_):
+        settings.OTF_DIR = self.otf_dir.get()
+        userconfig.set_value("otf_dir", self.otf_dir.get())
+
+    def _on_regfile_dir(self, *_):
+        settings.REGFILE_DIR = self.regfile_dir.get()
+        userconfig.set_value("regfile_dir", self.regfile_dir.get())
 
     def choose_otf_dir(self):
         d = filedialog.askdirectory(
