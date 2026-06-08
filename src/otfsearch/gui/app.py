@@ -16,7 +16,7 @@ from functools import partial
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
-from .. import filetypes, io_mrc, preflight, settings
+from .. import filetypes, io_mrc, preflight, settings, userconfig
 
 
 def _int_or_none(s: str):
@@ -78,8 +78,15 @@ class App:
         self.calib_image = tk.StringVar(value="")
         self.calib_refs = tk.StringVar(value="all")
 
-        self.otf_dir = tk.StringVar(value=s.OTF_DIR)
-        self.regfile_dir = tk.StringVar(value=s.REGFILE_DIR)
+        # library locations: seed from persisted user config, then settings.py;
+        # persist any change so they survive across sessions
+        _saved = userconfig.load()
+        self.otf_dir = tk.StringVar(value=_saved.get("otf_dir", s.OTF_DIR))
+        self.regfile_dir = tk.StringVar(value=_saved.get("regfile_dir", s.REGFILE_DIR))
+        self.otf_dir.trace_add(
+            "write", lambda *_: userconfig.set_value("otf_dir", self.otf_dir.get()))
+        self.regfile_dir.trace_add(
+            "write", lambda *_: userconfig.set_value("regfile_dir", self.regfile_dir.get()))
 
         self.batch_dir = tk.StringVar(value="")
         self.only_optimize_first = tk.IntVar(value=0)
@@ -251,8 +258,9 @@ class App:
             row=2, column=1, columnspan=6, sticky="w")
         tk.Button(f, text="Browse…", command=self.choose_regfile_dir).grid(
             row=2, column=7, padx=(6, 0), sticky="w")
-        tk.Label(f, text="(These default to values in settings.py and apply to this session.)").grid(
-            row=3, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        tk.Label(f, text=f"(Default to settings.py; changes are saved to {userconfig.PATH} "
+                         "and persist across sessions.)").grid(
+            row=3, column=0, columnspan=8, sticky="w", pady=(10, 0))
 
     def _build_help(self, f):
         txt = ScrolledText(f, wrap="word", height=16)
