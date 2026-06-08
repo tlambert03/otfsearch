@@ -92,7 +92,7 @@ class App:
         settings.REGFILE_DIR = self.regfile_dir.get()
 
         self.batch_dir = tk.StringVar(value="")
-        self.only_optimize_first = tk.IntVar(value=0)
+        self.only_optimize_first = tk.IntVar(value=1)
         self.skip_processed = tk.IntVar(value=1)
         self.status_txt = tk.StringVar(value="Ready")
 

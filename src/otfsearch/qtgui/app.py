@@ -248,6 +248,7 @@ class MainWindow(QMainWindow):
         v.addLayout(row)
 
         self.only_first = QCheckBox("Only optimize the first file, then reuse those OTFs")
+        self.only_first.setChecked(True)
         self.skip_done = QCheckBox("Skip files already reconstructed")
         self.skip_done.setChecked(True)
         v.addWidget(self.only_first)
