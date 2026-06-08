@@ -139,12 +139,13 @@ class MainWindow(QMainWindow):
         v.addLayout(row2)
 
         row3 = QHBoxLayout()
+        # on by default (the common workflow); settings.DO_* still drive API/CLI
         self.reg_check = QCheckBox("Channel registration")
-        self.reg_check.setChecked(bool(settings.DO_REG))
+        self.reg_check.setChecked(True)
         self.max_check = QCheckBox("Max-Z projection")
-        self.max_check.setChecked(bool(settings.DO_MAX))
+        self.max_check.setChecked(True)
         self.wf_check = QCheckBox("Pseudo-widefield")
-        self.wf_check.setChecked(bool(settings.DO_WF))
+        self.wf_check.setChecked(True)
         row3.addWidget(QLabel("After reconstruction:"))
         row3.addWidget(self.reg_check)
         row3.addWidget(self.max_check)

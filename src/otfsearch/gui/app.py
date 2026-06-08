@@ -56,9 +56,11 @@ class App:
         s = settings
         self.input_path = tk.StringVar()
         self.ref_channel = tk.IntVar(value=s.REF_CHANNEL)
-        self.do_reg = tk.IntVar(value=int(s.DO_REG))
-        self.do_max = tk.IntVar(value=int(s.DO_MAX))
-        self.do_wf = tk.IntVar(value=int(s.DO_WF))
+        # the post-reconstruction steps are on by default (the common workflow);
+        # the settings.DO_* values still drive the API/CLI defaults
+        self.do_reg = tk.IntVar(value=1)
+        self.do_max = tk.IntVar(value=1)
+        self.do_wf = tk.IntVar(value=1)
         self.chan_vars = {w: tk.IntVar(value=0) for w in s.WAVES}
 
         self.maxage = tk.StringVar(value="" if s.MAX_AGE is None else str(s.MAX_AGE))
