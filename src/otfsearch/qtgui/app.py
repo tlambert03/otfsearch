@@ -1,14 +1,18 @@
 """otfsearch PyQt6 GUI.
 
-A re-imagining of the tkinter tool (not a literal layout port). Same workflows —
-optimized reconstruction with OTF search, specified reconstruction, batch,
-channel registration — driving the same backend (``search``/``reconstruct``/
-``registration``/``batch``).
+One window with two layouts that swap in place (sharing the same log, worker, and
+status):
 
-Long tasks run on a ``QThread`` (``Job``); the backend's ``on_log`` callback is the
-thread's ``log`` signal, so output streams to the UI via queued connections. All
-widget state is read on the UI thread before a job starts, then passed in as plain
-values — no cross-thread widget access.
+  • Basic     — two operations, no options: reconstruct a single file, or batch a
+                directory. Optimized (OTF-search) reconstruction, all channels, with
+                registration / max-Z / pseudo-widefield.
+  • Advanced  — full controls across tabs (Optimized / Specify / Batch /
+                Registration / Settings / Help).
+
+Switch with the Mode menu. Both layouts drive the same backend
+(``search``/``reconstruct``/``registration``/``batch``); long tasks run on a
+``QThread`` (``Job``) whose ``log`` signal streams output to the shared log. Widget
+state is read on the UI thread before each job, so there is no cross-thread access.
 """
 
 from __future__ import annotations
@@ -18,11 +22,12 @@ import sys
 from functools import partial
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QAction, QActionGroup, QFont
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit,
-    QProgressBar, QPushButton, QSplitter, QTabWidget, QVBoxLayout, QWidget,
+    QProgressBar, QPushButton, QSplitter, QStackedWidget, QTabWidget, QVBoxLayout,
+    QWidget,
 )
 
 from .. import filetypes, io_mrc, preflight, settings, userconfig
@@ -41,11 +46,7 @@ def _float_or(s: str, default: float) -> float:
 
 
 class Job(QThread):
-    """Runs one callable off the UI thread, streaming output through signals.
-
-    The callable receives the ``Job`` and uses ``job.log``/``job.best``/
-    ``job.calibrated`` to report back.
-    """
+    """Runs one callable off the UI thread, streaming output through signals."""
 
     log = pyqtSignal(str)
     best = pyqtSignal(dict)        # best-OTF dict -> fill the Specify tab
@@ -67,31 +68,28 @@ class Job(QThread):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, mode: str = "basic"):
         super().__init__()
-        self.setWindowTitle("CBMF SIM Reconstruction")
-        self.resize(940, 740)
+        self.setWindowTitle("otfsearch")
+        self.resize(960, 760)
         self.worker = None   # lazily-created recon_worker.ReconWorker
         self.job: Job | None = None
         self._run_buttons: list[QPushButton] = []
 
-        central = QWidget()
-        self.setCentralWidget(central)
-        outer = QVBoxLayout(central)
-        outer.addWidget(self._build_top())
+        self._build_menu()
+
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self._build_basic_page())     # index 0
+        self.stack.addWidget(self._build_advanced_page())  # index 1
 
         split = QSplitter(Qt.Orientation.Vertical)
-        tabs = QTabWidget()
-        tabs.addTab(self._build_optimized(), "Optimized")
-        tabs.addTab(self._build_specify(), "Specify OTFs")
-        tabs.addTab(self._build_batch(), "Batch")
-        tabs.addTab(self._build_registration(), "Registration")
-        tabs.addTab(self._build_settings(), "Settings")
-        tabs.addTab(self._build_help(), "Help")
-        split.addWidget(tabs)
+        split.addWidget(self.stack)
         split.addWidget(self._build_log())
         split.setStretchFactor(1, 1)
-        outer.addWidget(split, 1)
+        split.setSizes([360, 380])
+        central = QWidget()
+        QVBoxLayout(central).addWidget(split)
+        self.setCentralWidget(central)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
@@ -100,16 +98,75 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.progress)
         self.statusBar().showMessage("Ready")
 
-        # mirror persisted library dirs into the settings module (so downstream
-        # defaults such as pick_reg_file honor them)
+        # mirror persisted library dirs into settings (so downstream defaults
+        # such as pick_reg_file honor them)
         settings.OTF_DIR = self.otf_dir_edit.text()
         settings.REGFILE_DIR = self.regdir_edit.text()
+        self.set_mode(mode)
 
-    # ── shared top section ──────────────────────────────────────────────────
+    # ── menu / mode switch ──────────────────────────────────────────────────
+    def _build_menu(self):
+        modemenu = self.menuBar().addMenu("Mode")
+        self.act_basic = QAction("Basic", self, checkable=True)
+        self.act_adv = QAction("Advanced", self, checkable=True)
+        grp = QActionGroup(self)
+        grp.addAction(self.act_basic)
+        grp.addAction(self.act_adv)
+        self.act_basic.triggered.connect(lambda: self.set_mode("basic"))
+        self.act_adv.triggered.connect(lambda: self.set_mode("advanced"))
+        modemenu.addAction(self.act_basic)
+        modemenu.addAction(self.act_adv)
+
+        libs = self.menuBar().addMenu("Libraries")
+        a1 = QAction("Set OTF library…", self)
+        a1.triggered.connect(self.set_otf_lib)
+        libs.addAction(a1)
+        a2 = QAction("Set reg-file directory…", self)
+        a2.triggered.connect(self.set_reg_dir)
+        libs.addAction(a2)
+
+    def set_mode(self, mode: str):
+        self.stack.setCurrentIndex(0 if mode == "basic" else 1)
+        self.act_basic.setChecked(mode == "basic")
+        self.act_adv.setChecked(mode == "advanced")
+
+    # ── basic page ──────────────────────────────────────────────────────────
+    def _build_basic_page(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.addWidget(QLabel(
+            "Optimized SIM reconstruction: searches the OTF library, reconstructs\n"
+            "all channels, then registers, max-projects, and makes a pseudo-widefield."))
+        self.btn_single = QPushButton("Reconstruct a single file…")
+        self.btn_single.setMinimumHeight(54)
+        self.btn_single.clicked.connect(self.do_single)
+        self.btn_batch = QPushButton("Batch process a directory…")
+        self.btn_batch.setMinimumHeight(54)
+        self.btn_batch.clicked.connect(self.do_batch)
+        self._run_buttons += [self.btn_single, self.btn_batch]
+        v.addWidget(self.btn_single)
+        v.addWidget(self.btn_batch)
+        v.addStretch(1)
+        return w
+
+    # ── advanced page ───────────────────────────────────────────────────────
+    def _build_advanced_page(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.addWidget(self._build_top())
+        tabs = QTabWidget()
+        tabs.addTab(self._build_optimized(), "Optimized")
+        tabs.addTab(self._build_specify(), "Specify OTFs")
+        tabs.addTab(self._build_batch(), "Batch")
+        tabs.addTab(self._build_registration(), "Registration")
+        tabs.addTab(self._build_settings(), "Settings")
+        tabs.addTab(self._build_help(), "Help")
+        v.addWidget(tabs, 1)
+        return w
+
     def _build_top(self) -> QWidget:
         box = QGroupBox("Input")
         v = QVBoxLayout(box)
-
         row1 = QHBoxLayout()
         self.input_edit = QLineEdit()
         self.input_edit.setPlaceholderText("raw SIM .dv file")
@@ -123,16 +180,16 @@ class MainWindow(QMainWindow):
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Channels:"))
         self.chan_checks: dict[int, QCheckBox] = {}
-        for w in settings.WAVES:
-            cb = QCheckBox(str(w))
+        for ww in settings.WAVES:
+            cb = QCheckBox(str(ww))
             cb.setEnabled(False)
-            self.chan_checks[w] = cb
+            self.chan_checks[ww] = cb
             row2.addWidget(cb)
         row2.addSpacing(20)
         row2.addWidget(QLabel("Reference:"))
         self.ref_combo = QComboBox()
-        for w in settings.WAVES:
-            self.ref_combo.addItem(str(w), w)
+        for ww in settings.WAVES:
+            self.ref_combo.addItem(str(ww), ww)
         self.ref_combo.setCurrentText(str(settings.REF_CHANNEL))
         row2.addWidget(self.ref_combo)
         row2.addStretch(1)
@@ -154,11 +211,9 @@ class MainWindow(QMainWindow):
         v.addLayout(row3)
         return box
 
-    # ── tabs ────────────────────────────────────────────────────────────────
     def _build_optimized(self) -> QWidget:
         w = QWidget()
         h = QHBoxLayout(w)
-
         limits = QGroupBox("Limit OTFs used in the search")
         form = QFormLayout(limits)
         self.maxage = QLineEdit("" if settings.MAX_AGE is None else str(settings.MAX_AGE))
@@ -269,7 +324,6 @@ class MainWindow(QMainWindow):
     def _build_registration(self) -> QWidget:
         w = QWidget()
         v = QVBoxLayout(w)
-
         apply_box = QGroupBox("Apply registration to the current input file")
         av = QVBoxLayout(apply_box)
         row = QHBoxLayout()
@@ -337,17 +391,16 @@ class MainWindow(QMainWindow):
         txt = QPlainTextEdit()
         txt.setReadOnly(True)
         txt.setPlainText(
-            "Choose a raw SIM .dv file (channels are detected automatically), then:\n\n"
-            "  Optimized     search the OTF directory for the best OTF per channel,\n"
-            "                then reconstruct. Best OTFs fill the Specify tab.\n"
+            "Mode → Basic gives two buttons (single file / batch directory) that run\n"
+            "the standard optimized reconstruction. Mode → Advanced (this view) exposes\n"
+            "all parameters.\n\n"
+            "Choose a raw SIM .dv file (channels are detected automatically), then:\n"
+            "  Optimized     search the OTF directory for the best OTF per channel.\n"
             "  Specify OTFs  reconstruct with the OTFs/parameters set on that tab.\n"
             "  Batch         run optimized/specified/register over a directory.\n"
             "  Registration  apply a reg file, or calibrate one from a bead grid.\n\n"
-            "The 'After reconstruction' checks add channel registration, a max-Z\n"
-            "projection, and/or a pseudo-widefield image.\n\n"
-            "Set the OTF and reg-file directories on the Settings tab.\n\n"
-            "Requires an NVIDIA GPU with a CUDA-12 driver and the cudasirecon engine\n"
-            "on PATH (conda 'talley' channel)."
+            "Set the OTF and reg-file directories on the Settings tab (or the Libraries\n"
+            "menu). Requires an NVIDIA GPU + CUDA-12 driver and cudasirecon on PATH."
         )
         v.addWidget(txt)
         return w
@@ -373,7 +426,7 @@ class MainWindow(QMainWindow):
         holder.setLayout(row)
         return holder
 
-    # ── file/dir choosers ───────────────────────────────────────────────────
+    # ── file/dir choosers + library config ──────────────────────────────────
     def choose_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Choose raw SIM file", "", "DeltaVision/MRC (*.dv *.mrc)")
@@ -421,6 +474,16 @@ class MainWindow(QMainWindow):
         if d:
             edit.setText(d)
 
+    def set_otf_lib(self):
+        d = QFileDialog.getExistingDirectory(self, "OTF library directory", settings.OTF_DIR)
+        if d:
+            self.otf_dir_edit.setText(d)   # textChanged -> settings + persist
+
+    def set_reg_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "Reg-file directory", settings.REGFILE_DIR)
+        if d:
+            self.regdir_edit.setText(d)
+
     def _on_otf_dir(self, text: str):
         settings.OTF_DIR = text
         userconfig.set_value("otf_dir", text)
@@ -446,6 +509,15 @@ class MainWindow(QMainWindow):
                 return None
         return path
 
+    def _ensure_otf_dir(self) -> bool:
+        if settings.OTF_DIR and os.path.isdir(settings.OTF_DIR):
+            return True
+        d = QFileDialog.getExistingDirectory(self, "Select your OTF library directory")
+        if not d:
+            return False
+        self.otf_dir_edit.setText(d)
+        return True
+
     def get_worker(self):
         if self.worker is None:
             msg = preflight.check_gpu_stack()
@@ -455,7 +527,73 @@ class MainWindow(QMainWindow):
             self.worker = ReconWorker()
         return self.worker
 
-    # ── actions ─────────────────────────────────────────────────────────────
+    # ── basic actions ───────────────────────────────────────────────────────
+    def do_single(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Choose raw SIM file", "", "DeltaVision/MRC (*.dv *.mrc)")
+        if not path:
+            return
+        if not filetypes.is_raw_sim_file(path) and QMessageBox.question(
+                self, "Input warning",
+                "File doesn't look like a raw SIM file. Continue?") \
+                != QMessageBox.StandardButton.Yes:
+            return
+        if not self._ensure_otf_dir():
+            return
+        try:
+            worker = self.get_worker()
+        except RuntimeError as e:
+            QMessageBox.critical(self, "GPU engine", str(e))
+            return
+        ref = settings.REF_CHANNEL
+
+        def fn(job):
+            from .. import search, reconstruct, project
+            res = search.make_best_reconstruction(
+                path, otf_dir=settings.OTF_DIR, recon_waves=None,
+                do_reg=False, do_max=True, ref_channel=ref,
+                worker=worker, on_log=job.log.emit)
+            for k in ("reconstruction", "max", "scores_csv", "log"):
+                if res.get(k):
+                    job.log.emit(f"FILE READY - {k}: {res[k]}")
+            proc = res.get("reconstruction")
+            if proc:
+                try:
+                    registered, _ = reconstruct.postprocess(
+                        proc, do_reg=True, do_max=False, ref_channel=ref,
+                        on_log=job.log.emit)
+                    if registered:
+                        job.log.emit(f"FILE READY - registered: {registered}")
+                except Exception as e:  # noqa: BLE001
+                    job.log.emit(f"registration skipped: {e}")
+            try:
+                job.log.emit(f"FILE READY - pseudoWF: {project.pseudo_widefield(path)}")
+            except Exception as e:  # noqa: BLE001
+                job.log.emit(f"pseudo-widefield failed: {e}")
+        self._submit(fn)
+
+    def do_batch(self):
+        directory = QFileDialog.getExistingDirectory(self, "Directory of raw .dv files")
+        if not directory:
+            return
+        if not self._ensure_otf_dir():
+            return
+        try:
+            worker = self.get_worker()
+        except RuntimeError as e:
+            QMessageBox.critical(self, "GPU engine", str(e))
+            return
+        recon_kwargs = dict(otf_dir=settings.OTF_DIR, recon_waves=None,
+                            ref_channel=settings.REF_CHANNEL, do_reg=False, do_max=False)
+
+        def fn(job):
+            from .. import batch as batchmod
+            batchmod.batch(
+                directory, "optimal", skip_processed=True, only_optimize_first=True,
+                recon_kwargs=recon_kwargs, on_log=job.log.emit, worker=worker)
+        self._submit(fn)
+
+    # ── advanced actions ────────────────────────────────────────────────────
     def run_optimal(self):
         path = self._checked_input()
         if not path:
@@ -607,7 +745,7 @@ class MainWindow(QMainWindow):
         except Exception as e:  # noqa: BLE001
             job.log.emit(f"pseudo-widefield failed: {e}")
 
-    # ── job plumbing ────────────────────────────────────────────────────────
+    # ── job plumbing (shared) ───────────────────────────────────────────────
     def _submit(self, fn):
         if self.job is not None and self.job.isRunning():
             QMessageBox.information(self, "Busy", "A task is already running.")
@@ -651,11 +789,19 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-def main():
+def _launch(mode: str):
     app = QApplication(sys.argv)
-    win = MainWindow()
+    win = MainWindow(mode=mode)
     win.show()
     sys.exit(app.exec())
+
+
+def main():            # otfsearch-qt : basic layout
+    _launch("basic")
+
+
+def main_advanced():   # otfsearch-qt-advanced : advanced layout
+    _launch("advanced")
 
 
 if __name__ == "__main__":

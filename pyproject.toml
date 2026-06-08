@@ -38,7 +38,8 @@ qt = ["pyqt6"]
 
 [project.scripts]
 otfsearch = "otfsearch.gui.app:main"
-otfsearch-qt = "otfsearch.qtgui.app:main"
+otfsearch-qt = "otfsearch.qtgui.app:main"                    # PyQt6 (opens Basic)
+otfsearch-qt-advanced = "otfsearch.qtgui.app:main_advanced"  # PyQt6 (opens Advanced)
 otfsearch-cli = "otfsearch.cli:main"
 
 [project.urls]
@@ -82,8 +83,9 @@ pyqt6 = "*"
 fiducialreg = { git = "https://github.com/tlambert03/fiducialreg.git" }
 
 [tool.pixi.tasks]
-otfsearch = "otfsearch"          # tkinter GUI
-qt = "otfsearch-qt"              # PyQt6 GUI
+otfsearch = "otfsearch"              # tkinter GUI
+qt = "otfsearch-qt"                  # PyQt6 GUI (basic)
+qt-advanced = "otfsearch-qt-advanced"  # PyQt6 GUI (full controls)
 cli = "otfsearch-cli"
 test = "pytest"
 # quick environment sanity check (no GUI window)
