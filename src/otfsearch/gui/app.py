@@ -244,9 +244,13 @@ class App:
         tk.Label(f, text="OTF Directory:").grid(row=1, sticky="e")
         tk.Entry(f, textvariable=self.otf_dir, width=52).grid(
             row=1, column=1, columnspan=6, sticky="w")
+        tk.Button(f, text="Browse…", command=self.choose_otf_dir).grid(
+            row=1, column=7, padx=(6, 0), sticky="w")
         tk.Label(f, text="Reg-file Directory:").grid(row=2, sticky="e")
         tk.Entry(f, textvariable=self.regfile_dir, width=52).grid(
             row=2, column=1, columnspan=6, sticky="w")
+        tk.Button(f, text="Browse…", command=self.choose_regfile_dir).grid(
+            row=2, column=7, padx=(6, 0), sticky="w")
         tk.Label(f, text="(These default to values in settings.py and apply to this session.)").grid(
             row=3, column=0, columnspan=6, sticky="w", pady=(10, 0))
 
@@ -347,6 +351,18 @@ class App:
         d = filedialog.askdirectory()
         if d:
             self.batch_dir.set(d)
+
+    def choose_otf_dir(self):
+        d = filedialog.askdirectory(
+            initialdir=self.otf_dir.get() or None, title="OTF directory")
+        if d:
+            self.otf_dir.set(d)
+
+    def choose_regfile_dir(self):
+        d = filedialog.askdirectory(
+            initialdir=self.regfile_dir.get() or None, title="Reg-file directory")
+        if d:
+            self.regfile_dir.set(d)
 
     def select_otf(self, wave: int):
         path = filedialog.askopenfilename(
